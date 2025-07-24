@@ -8,33 +8,51 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Game theme colors */
+    --background: 120 15% 8%;
+    --foreground: 44 38% 92%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 44 38% 92%;
+    --card-foreground: 120 15% 8%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 44 38% 92%;
+    --popover-foreground: 120 15% 8%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 120 25% 15%;
+    --primary-foreground: 44 38% 92%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 120 20% 12%;
+    --secondary-foreground: 44 38% 92%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 120 10% 20%;
+    --muted-foreground: 44 20% 70%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 30 40% 85%;
+    --accent-foreground: 120 15% 8%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 44 38% 92%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 120 10% 25%;
+    --input: 120 10% 20%;
+    --ring: 44 38% 92%;
+    
+    /* Game-specific colors */
+    --game-table: 120 25% 15%;
+    --game-felt: 120 30% 18%;
+    --domino-face: 44 25% 88%;
+    --domino-back: 30 15% 85%;
+    --domino-border: 30 20% 60%;
+    --domino-pip: 0 0% 5%;
+    --wood-border: 30 40% 35%;
+    
+    /* Gradients */
+    --gradient-table: linear-gradient(135deg, hsl(var(--game-table)), hsl(var(--game-felt)));
+    --gradient-domino: linear-gradient(145deg, hsl(var(--domino-face)), hsl(var(--domino-back)));
+    
+    /* Shadows */
+    --shadow-domino: 0 4px 12px hsl(120 25% 10% / 0.3);
+    --shadow-game: 0 8px 32px hsl(120 25% 5% / 0.4);
 
     --radius: 0.5rem;
 

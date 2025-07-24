@@ -52,6 +52,19 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				game: {
+					table: 'hsl(var(--game-table))',
+					felt: 'hsl(var(--game-felt))',
+				},
+				domino: {
+					face: 'hsl(var(--domino-face))',
+					back: 'hsl(var(--domino-back))',
+					border: 'hsl(var(--domino-border))',
+					pip: 'hsl(var(--domino-pip))',
+				},
+				wood: {
+					border: 'hsl(var(--wood-border))',
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
