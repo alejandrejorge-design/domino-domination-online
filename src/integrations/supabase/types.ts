@@ -14,7 +14,160 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      game_players: {
+        Row: {
+          display_name: string | null
+          game_room_id: string
+          hand: Json | null
+          id: string
+          is_connected: boolean
+          is_current_player: boolean
+          joined_at: string
+          position: number
+          score: number
+          user_id: string
+        }
+        Insert: {
+          display_name?: string | null
+          game_room_id: string
+          hand?: Json | null
+          id?: string
+          is_connected?: boolean
+          is_current_player?: boolean
+          joined_at?: string
+          position: number
+          score?: number
+          user_id: string
+        }
+        Update: {
+          display_name?: string | null
+          game_room_id?: string
+          hand?: Json | null
+          id?: string
+          is_connected?: boolean
+          is_current_player?: boolean
+          joined_at?: string
+          position?: number
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_players_game_room_id_fkey"
+            columns: ["game_room_id"]
+            isOneToOne: false
+            referencedRelation: "game_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_rooms: {
+        Row: {
+          created_at: string
+          current_players: number
+          host_id: string
+          id: string
+          max_players: number
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_players?: number
+          host_id: string
+          id?: string
+          max_players?: number
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_players?: number
+          host_id?: string
+          id?: string
+          max_players?: number
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      game_state: {
+        Row: {
+          created_at: string
+          current_player_id: string | null
+          dominoes: Json | null
+          game_room_id: string
+          id: string
+          left_end: number | null
+          placed_dominoes: Json | null
+          right_end: number | null
+          turn_order: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_player_id?: string | null
+          dominoes?: Json | null
+          game_room_id: string
+          id?: string
+          left_end?: number | null
+          placed_dominoes?: Json | null
+          right_end?: number | null
+          turn_order?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_player_id?: string | null
+          dominoes?: Json | null
+          game_room_id?: string
+          id?: string
+          left_end?: number | null
+          placed_dominoes?: Json | null
+          right_end?: number | null
+          turn_order?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_state_game_room_id_fkey"
+            columns: ["game_room_id"]
+            isOneToOne: true
+            referencedRelation: "game_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
