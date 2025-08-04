@@ -8,6 +8,8 @@ interface DominoTileProps {
   rotation?: number;
   size?: 'small' | 'medium' | 'large';
   isPlayable?: boolean;
+  selected?: boolean;
+  playable?: boolean;
 }
 
 const DominoTile = ({ 
@@ -16,7 +18,9 @@ const DominoTile = ({
   className, 
   rotation = 0, 
   size = 'medium',
-  isPlayable = false 
+  isPlayable = false,
+  selected = false,
+  playable = false
 }: DominoTileProps) => {
   const renderPips = (value: number, isLeft: boolean) => {
     const pipPositions = {
@@ -64,7 +68,8 @@ const DominoTile = ({
         "border-2 border-domino-border rounded-lg",
         "shadow-[var(--shadow-domino)]",
         "hover:scale-105 hover:shadow-lg",
-        isPlayable && "ring-2 ring-accent ring-opacity-50",
+        (isPlayable || playable) && "ring-2 ring-accent ring-opacity-50",
+        selected && "ring-4 ring-accent scale-105",
         sizeClasses[size],
         className
       )}
