@@ -53,6 +53,9 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
   const fetchGameRooms = async () => {
     setLoading(true);
     try {
+      // Clean up old rooms first
+      await supabase.rpc('cleanup_old_game_rooms');
+      
       const { data, error } = await supabase
         .from('game_rooms')
         .select('*')
@@ -224,10 +227,10 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
                     {gameRooms.map((room) => (
                       <div
                         key={room.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors bg-card"
                       >
                         <div className="flex-1">
-                          <h3 className="font-semibold text-foreground">{room.name}</h3>
+                          <h3 className="font-semibold text-card-foreground">{room.name}</h3>
                           <p className="text-sm text-muted-foreground">
                             {room.current_players}/{room.max_players} players
                           </p>
