@@ -60,7 +60,10 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setGameRooms(data || []);
+      setGameRooms((data || []).map(room => ({
+        ...room,
+        status: room.status as 'waiting' | 'playing' | 'finished'
+      })));
     } catch (error: any) {
       toast({
         title: "Error",

@@ -59,12 +59,36 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       
       if (data) {
         setGameState(data);
-        setPlacedDominoes(data.placed_dominoes || []);
+        
+        // Parse placed dominoes from JSON
+        let parsedPlacedDominoes: PlacedDomino[] = [];
+        try {
+          if (typeof data.placed_dominoes === 'string') {
+            parsedPlacedDominoes = JSON.parse(data.placed_dominoes);
+          } else if (Array.isArray(data.placed_dominoes)) {
+            parsedPlacedDominoes = data.placed_dominoes as unknown as PlacedDomino[];
+          }
+        } catch (e) {
+          parsedPlacedDominoes = [];
+        }
+        setPlacedDominoes(parsedPlacedDominoes);
         
         // Calculate playable dominoes for current user
         const currentPlayer = await getCurrentPlayer();
         if (currentPlayer?.is_current_player) {
-          const playable = currentPlayer.hand
+          // Parse player hand from JSON
+          let playerHand: Domino[] = [];
+          try {
+            if (typeof currentPlayer.hand === 'string') {
+              playerHand = JSON.parse(currentPlayer.hand);
+            } else if (Array.isArray(currentPlayer.hand)) {
+              playerHand = currentPlayer.hand as unknown as Domino[];
+            }
+          } catch (e) {
+            playerHand = [];
+          }
+          
+          const playable = playerHand
             .filter((domino: Domino) => canPlayDomino(domino, data.left_end, data.right_end))
             .map((domino: Domino) => domino.id);
           setPlayableDominoes(playable);
@@ -115,12 +139,17 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       for (let i = 0; i < players.length; i++) {
         await supabase
           .from('game_players')
-          .update({ hand: playerHands[i] || [] })
+          .update({ hand: JSON.stringify(playerHands[i] || []) })
           .eq('id', players[i].id);
       }
 
       // Find starting player
-      const startingPlayerIndex = findStartingPlayer(players.map(p => ({ ...p, hand: playerHands[p.position] || [] })));
+      const startingPlayerIndex = findStartingPlayer(players.map(p => ({ 
+        ...p, 
+        name: p.display_name || '',
+        isCurrentPlayer: p.is_current_player,
+        hand: playerHands[p.position] || [] 
+      })));
       
       // Set current player
       await supabase
@@ -183,7 +212,18 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
     }
 
     // Check if we need to select which end to play on
-    const domino = currentPlayer.hand.find((d: Domino) => d.id === dominoId);
+    let playerHand: Domino[] = [];
+    try {
+      if (typeof currentPlayer.hand === 'string') {
+        playerHand = JSON.parse(currentPlayer.hand);
+      } else if (Array.isArray(currentPlayer.hand)) {
+        playerHand = currentPlayer.hand as unknown as Domino[];
+      }
+    } catch (e) {
+      playerHand = [];
+    }
+    
+    const domino = playerHand.find((d: Domino) => d.id === dominoId);
     if (!domino) return;
 
     const canPlayLeft = gameState.left_end === null || domino.left === gameState.left_end || domino.right === gameState.left_end;
@@ -211,7 +251,18 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       const currentPlayer = await getCurrentPlayer();
       if (!currentPlayer?.is_current_player) return;
 
-      const domino = currentPlayer.hand.find((d: Domino) => d.id === dominoId);
+      let playerHand: Domino[] = [];
+      try {
+        if (typeof currentPlayer.hand === 'string') {
+          playerHand = JSON.parse(currentPlayer.hand);
+        } else if (Array.isArray(currentPlayer.hand)) {
+          playerHand = currentPlayer.hand as unknown as Domino[];
+        }
+      } catch (e) {
+        playerHand = [];
+      }
+      
+      const domino = playerHand.find((d: Domino) => d.id === dominoId);
       if (!domino) return;
 
       // Calculate new ends and placement
@@ -235,11 +286,11 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         side,
       };
 
-      // Update player's hand
-      const newHand = currentPlayer.hand.filter((d: Domino) => d.id !== dominoId);
+      // Update player's hand  
+      const newHand = playerHand.filter((d: Domino) => d.id !== dominoId);
       await supabase
         .from('game_players')
-        .update({ hand: newHand })
+        .update({ hand: JSON.stringify(newHand) })
         .eq('id', currentPlayer.id);
 
       // Get next player
@@ -273,7 +324,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
           board: [...(gameState.board || []), domino],
           left_end: newLeftEnd,
           right_end: newRightEnd,
-          placed_dominoes: newPlacedDominoes,
+          placed_dominoes: JSON.stringify(newPlacedDominoes),
           last_move: {
             player_id: currentPlayer.user_id,
             domino_id: dominoId,

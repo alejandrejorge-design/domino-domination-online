@@ -108,7 +108,10 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
         .order('position');
 
       if (error) throw error;
-      setPlayers(data || []);
+      setPlayers((data || []).map(player => ({
+        ...player,
+        hand: Array.isArray(player.hand) ? player.hand : []
+      })));
     } catch (error: any) {
       toast({
         title: "Error",
