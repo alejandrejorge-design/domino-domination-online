@@ -148,13 +148,14 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
         return;
       }
 
-      // Find next available position
-      const { data: players } = await supabase
+      // Find next available position (only consider connected players)
+      const { data: connectedPlayers } = await supabase
         .from('game_players')
         .select('position')
-        .eq('game_room_id', gameRoomId);
+        .eq('game_room_id', gameRoomId)
+        .eq('is_connected', true);
 
-      const usedPositions = players?.map(p => p.position) || [];
+      const usedPositions = connectedPlayers?.map(p => p.position) || [];
       const nextPosition = [0, 1, 2, 3].find(pos => !usedPositions.includes(pos)) || 0;
 
       // Join the game
