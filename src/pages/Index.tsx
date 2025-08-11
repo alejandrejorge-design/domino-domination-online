@@ -6,12 +6,14 @@ import MultiplayerGameRoom from '@/components/MultiplayerGameRoom';
 import DominoGame from '@/components/DominoGame';
 import { Button } from '@/components/ui/button';
 import { Users, Computer, Settings } from 'lucide-react';
+import { useUserRole } from '@/hooks/useUserRole';
 
 const Index = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<'menu' | 'lobby' | 'game' | 'singleplayer'>('menu');
   const [gameRoomId, setGameRoomId] = useState<string | null>(null);
+  const { hasAdminAccess } = useUserRole(user);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -44,9 +46,11 @@ const Index = () => {
           <Button onClick={() => setCurrentView('singleplayer')} variant="outline" className="w-full h-16 text-lg" size="lg">
             <Computer className="w-6 h-6 mr-3" />Practice vs AI
           </Button>
-          <Button onClick={() => window.open('/admin', '_blank')} variant="outline" size="sm" className="w-full">
-            <Settings className="w-4 h-4 mr-2" />Admin Dashboard
-          </Button>
+          {hasAdminAccess && (
+            <Button onClick={() => window.open('/admin', '_blank')} variant="outline" size="sm" className="w-full">
+              <Settings className="w-4 h-4 mr-2" />Admin Dashboard
+            </Button>
+          )}
           <Button onClick={() => supabase.auth.signOut()} variant="ghost" size="sm">Sign Out</Button>
         </div>
       </div>
