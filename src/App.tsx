@@ -8,6 +8,7 @@ import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import AdminDashboard from "./pages/AdminDashboard";
+import QADashboard from "./pages/QADashboard";
 import NotFound from "./pages/NotFound";
 import { ProtectedAdminRoute } from "./components/ProtectedAdminRoute";
 
@@ -45,6 +46,14 @@ const App = () => {
               element={
                 <ProtectedAdminRoute user={user}>
                   <AdminDashboard />
+                </ProtectedAdminRoute>
+              } 
+            />
+            <Route 
+              path="/qa" 
+              element={
+                <ProtectedAdminRoute user={user}>
+                  <QADashboard />
                 </ProtectedAdminRoute>
               } 
             />
