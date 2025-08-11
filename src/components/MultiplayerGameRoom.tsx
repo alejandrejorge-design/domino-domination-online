@@ -167,10 +167,18 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
       if (insertError) throw insertError;
 
+      // Get updated player count
+      const { data: updatedPlayers } = await supabase
+        .from('game_players')
+        .select('id')
+        .eq('game_room_id', gameRoomId);
+
+      const playerCount = updatedPlayers?.length || 1;
+
       // Update room player count
       const { error: updateError } = await supabase
         .from('game_rooms')
-        .update({ current_players: usedPositions.length + 1 })
+        .update({ current_players: playerCount })
         .eq('id', gameRoomId);
 
       if (updateError) throw updateError;
@@ -187,11 +195,28 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
   const leaveGameRoom = async () => {
     try {
+      // Update connection status
       await supabase
         .from('game_players')
         .update({ is_connected: false })
         .eq('game_room_id', gameRoomId)
         .eq('user_id', user.id);
+
+      // Get updated player count (only connected players)
+      const { data: connectedPlayers } = await supabase
+        .from('game_players')
+        .select('id')
+        .eq('game_room_id', gameRoomId)
+        .eq('is_connected', true);
+
+      const playerCount = connectedPlayers?.length || 0;
+
+      // Update room player count
+      await supabase
+        .from('game_rooms')
+        .update({ current_players: playerCount })
+        .eq('id', gameRoomId);
+
     } catch (error) {
       console.error('Error leaving room:', error);
     }

@@ -35,7 +35,7 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
     fetchGameRooms();
     
     // Subscribe to real-time updates for game rooms
-    const subscription = supabase
+    const roomsSubscription = supabase
       .channel('game_rooms_changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'game_rooms' },
@@ -45,8 +45,20 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
       )
       .subscribe();
 
+    // Subscribe to game players changes to update room counts
+    const playersSubscription = supabase
+      .channel('game_players_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'game_players' },
+        () => {
+          fetchGameRooms();
+        }
+      )
+      .subscribe();
+
     return () => {
-      subscription.unsubscribe();
+      roomsSubscription.unsubscribe();
+      playersSubscription.unsubscribe();
     };
   }, []);
 
