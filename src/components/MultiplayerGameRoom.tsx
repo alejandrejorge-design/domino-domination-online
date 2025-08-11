@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { filterPlayerData } from '@/utils/playerUtils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Users, Play, Copy, Check } from 'lucide-react';
 import { useMultiplayerGame } from '@/hooks/useMultiplayerGame';
+import { useToast } from '@/hooks/use-toast';
 import DominoTile from './DominoTile';
 import GameBoard from './GameBoard';
 
@@ -102,18 +103,20 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
   const fetchPlayers = async () => {
     try {
       const { data, error } = await supabase
-        .from('safe_game_players')
+        .from('game_players')
         .select('*')
         .eq('game_room_id', gameRoomId)
         .order('position');
 
       if (error) throw error;
       
-      console.log('Fetched players:', data);
-      setPlayers((data || []).map(player => ({
+      // Filter player data to ensure security - only current user can see their own hand
+      const rawPlayers = (data || []).map(player => ({
         ...player,
         hand: Array.isArray(player.hand) ? player.hand : []
-      })));
+      }));
+      const filteredPlayers = filterPlayerData(rawPlayers, user.id);
+      setPlayers(filteredPlayers);
     } catch (error: any) {
       console.error('Fetch players error:', error);
       toast({

@@ -191,53 +191,7 @@ export type Database = {
       }
     }
     Views: {
-      safe_game_players: {
-        Row: {
-          display_name: string | null
-          game_room_id: string | null
-          hand: Json | null
-          id: string | null
-          is_connected: boolean | null
-          is_current_player: boolean | null
-          joined_at: string | null
-          position: number | null
-          score: number | null
-          user_id: string | null
-        }
-        Insert: {
-          display_name?: string | null
-          game_room_id?: string | null
-          hand?: never
-          id?: string | null
-          is_connected?: boolean | null
-          is_current_player?: boolean | null
-          joined_at?: string | null
-          position?: number | null
-          score?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          display_name?: string | null
-          game_room_id?: string | null
-          hand?: never
-          id?: string | null
-          is_connected?: boolean | null
-          is_current_player?: boolean | null
-          joined_at?: string | null
-          position?: number | null
-          score?: number | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "game_players_game_room_id_fkey"
-            columns: ["game_room_id"]
-            isOneToOne: false
-            referencedRelation: "game_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       cleanup_old_game_rooms: {
