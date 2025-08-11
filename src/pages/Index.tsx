@@ -5,7 +5,7 @@ import GameLobby from '@/components/GameLobby';
 import MultiplayerGameRoom from '@/components/MultiplayerGameRoom';
 import DominoGame from '@/components/DominoGame';
 import { Button } from '@/components/ui/button';
-import { Users, Computer } from 'lucide-react';
+import { Users, Computer, Settings } from 'lucide-react';
 
 const Index = () => {
   const [user, setUser] = useState<any>(null);
@@ -43,6 +43,9 @@ const Index = () => {
           </Button>
           <Button onClick={() => setCurrentView('singleplayer')} variant="outline" className="w-full h-16 text-lg" size="lg">
             <Computer className="w-6 h-6 mr-3" />Practice vs AI
+          </Button>
+          <Button onClick={() => window.open('/admin', '_blank')} variant="outline" size="sm" className="w-full">
+            <Settings className="w-4 h-4 mr-2" />Admin Dashboard
           </Button>
           <Button onClick={() => supabase.auth.signOut()} variant="ghost" size="sm">Sign Out</Button>
         </div>
