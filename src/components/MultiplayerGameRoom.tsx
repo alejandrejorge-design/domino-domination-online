@@ -131,12 +131,23 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
   const joinGameRoom = async () => {
     try {
+      // Get current authenticated user to ensure we have the right user ID
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        toast({
+          title: "Authentication Error",
+          description: "Please sign in again to join the game.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Check if already joined
       const { data: existingPlayer } = await supabase
         .from('game_players')
         .select('*')
         .eq('game_room_id', gameRoomId)
-        .eq('user_id', user.id)
+        .eq('user_id', authUser.id)
         .maybeSingle();
 
       if (existingPlayer) {
@@ -158,23 +169,21 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
       const usedPositions = connectedPlayers?.map(p => p.position) || [];
       const nextPosition = [0, 1, 2, 3].find(pos => !usedPositions.includes(pos)) || 0;
 
-      // Use upsert to handle edge cases and prevent duplicate key errors
-      const { error: upsertError } = await supabase
+      // Insert new player record using authenticated user ID
+      const { error: insertError } = await supabase
         .from('game_players')
-        .upsert({
+        .insert({
           game_room_id: gameRoomId,
-          user_id: user.id,
-          display_name: user.user_metadata?.display_name || user.email,
+          user_id: authUser.id, // Use authUser.id to match auth.uid()
+          display_name: authUser.user_metadata?.display_name || authUser.email,
           position: nextPosition,
           hand: [],
           score: 0,
           is_current_player: false,
           is_connected: true,
-        }, {
-          onConflict: 'game_room_id,user_id'
         });
 
-      if (upsertError) throw upsertError;
+      if (insertError) throw insertError;
 
       // Get updated player count
       const { data: updatedPlayers } = await supabase
