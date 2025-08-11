@@ -190,9 +190,10 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         description: `${players[startingPlayerIndex].display_name} goes first.`,
       });
     } catch (error: any) {
+      console.error('Start game error:', error);
       toast({
         title: "Error",
-        description: "Failed to start game",
+        description: `Failed to start game: ${error.message}`,
         variant: "destructive",
       });
     }

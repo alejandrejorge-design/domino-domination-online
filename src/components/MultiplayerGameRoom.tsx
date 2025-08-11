@@ -108,14 +108,17 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
         .order('position');
 
       if (error) throw error;
+      
+      console.log('Fetched players:', data);
       setPlayers((data || []).map(player => ({
         ...player,
         hand: Array.isArray(player.hand) ? player.hand : []
       })));
     } catch (error: any) {
+      console.error('Fetch players error:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch players",
+        description: `Failed to fetch players: ${error.message}`,
         variant: "destructive",
       });
     } finally {
