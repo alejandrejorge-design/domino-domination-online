@@ -300,17 +300,28 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[0, 1, 2, 3].map((position) => {
               const player = players.find(p => p.position === position);
+              const isHost = player && gameRoom?.host_id === player.user_id;
               return (
                 <Card key={position} className={player ? 'border-accent' : 'border-dashed'}>
                   <CardHeader className="text-center">
                     <CardTitle className="text-sm">
-                      {position === 0 ? 'Host' : `Player ${position + 1}`}
+                      {player ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <span>{player.display_name}</span>
+                          {isHost && (
+                            <Badge variant="secondary" className="text-xs">
+                              Host
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        `Player ${position + 1} Slot`
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="text-center">
                     {player ? (
                       <div>
-                        <div className="font-semibold text-foreground">{player.display_name}</div>
                         <Badge variant={player.is_connected ? 'default' : 'secondary'} className="mt-2">
                           {player.is_connected ? 'Connected' : 'Disconnected'}
                         </Badge>
