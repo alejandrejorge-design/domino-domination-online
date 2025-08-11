@@ -131,7 +131,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
         .select('*')
         .eq('game_room_id', gameRoomId)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (existingPlayer) {
         // Update connection status
@@ -152,7 +152,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
       const nextPosition = [0, 1, 2, 3].find(pos => !usedPositions.includes(pos)) || 0;
 
       // Join the game
-      await supabase
+      const { error: insertError } = await supabase
         .from('game_players')
         .insert({
           game_room_id: gameRoomId,
@@ -165,16 +165,21 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
           is_connected: true,
         });
 
+      if (insertError) throw insertError;
+
       // Update room player count
-      await supabase
+      const { error: updateError } = await supabase
         .from('game_rooms')
         .update({ current_players: usedPositions.length + 1 })
         .eq('id', gameRoomId);
 
+      if (updateError) throw updateError;
+
     } catch (error: any) {
+      console.error('Join room error:', error);
       toast({
         title: "Error",
-        description: "Failed to join game room",
+        description: `Failed to join game room: ${error.message}`,
         variant: "destructive",
       });
     }
