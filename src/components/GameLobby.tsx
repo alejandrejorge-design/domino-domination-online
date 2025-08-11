@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Play, LogOut } from 'lucide-react';
+import { Plus, Users, Play, LogOut, RefreshCw } from 'lucide-react';
 
 type GameRoom = {
   id: string;
@@ -217,13 +217,25 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Available Game Rooms
-                </CardTitle>
-                <CardDescription>
-                  Join an existing game or wait for others to join yours
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      Available Game Rooms
+                    </CardTitle>
+                    <CardDescription>
+                      Join an existing game or wait for others to join yours
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={fetchGameRooms}
+                    disabled={loading}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
