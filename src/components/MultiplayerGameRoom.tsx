@@ -131,23 +131,32 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
   const joinGameRoom = async () => {
     try {
-      // Get current authenticated user to ensure we have the right user ID
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) {
+      console.log('joinGameRoom called, user prop:', user);
+      
+      // Double-check authentication state
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('Current session:', session, 'Session error:', sessionError);
+      
+      if (!session?.user) {
+        console.log('No valid session found');
         toast({
-          title: "Authentication Error",
+          title: "Authentication Error", 
           description: "Please sign in again to join the game.",
           variant: "destructive",
         });
         return;
       }
 
+      const authUserId = session.user.id;
+      console.log('Using authenticated user ID:', authUserId);
+      console.log('About to check for existing player with user_id:', authUserId);
+
       // Check if already joined
       const { data: existingPlayer } = await supabase
         .from('game_players')
         .select('*')
         .eq('game_room_id', gameRoomId)
-        .eq('user_id', authUser.id)
+        .eq('user_id', authUserId)
         .maybeSingle();
 
       if (existingPlayer) {
@@ -169,13 +178,20 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
       const usedPositions = connectedPlayers?.map(p => p.position) || [];
       const nextPosition = [0, 1, 2, 3].find(pos => !usedPositions.includes(pos)) || 0;
 
+      console.log('About to insert player with data:', {
+        game_room_id: gameRoomId,
+        user_id: authUserId,
+        display_name: session.user.user_metadata?.display_name || session.user.email,
+        position: nextPosition,
+      });
+
       // Insert new player record using authenticated user ID
       const { error: insertError } = await supabase
         .from('game_players')
         .insert({
           game_room_id: gameRoomId,
-          user_id: authUser.id, // Use authUser.id to match auth.uid()
-          display_name: authUser.user_metadata?.display_name || authUser.email,
+          user_id: authUserId, // Use session user ID to match auth.uid()
+          display_name: session.user.user_metadata?.display_name || session.user.email,
           position: nextPosition,
           hand: [],
           score: 0,
@@ -183,6 +199,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
           is_connected: true,
         });
 
+      console.log('Insert result - error:', insertError);
       if (insertError) throw insertError;
 
       // Get updated player count
