@@ -102,7 +102,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
   const fetchPlayers = async () => {
     try {
       const { data, error } = await supabase
-        .from('game_players')
+        .from('safe_game_players')
         .select('*')
         .eq('game_room_id', gameRoomId)
         .order('position');

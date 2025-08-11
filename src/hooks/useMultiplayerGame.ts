@@ -128,7 +128,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
 
       // Get all players
       const { data: players, error: playersError } = await supabase
-        .from('game_players')
+        .from('safe_game_players')
         .select('*')
         .eq('game_room_id', gameRoomId)
         .order('position');
@@ -296,7 +296,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
 
       // Get next player
       const { data: allPlayers } = await supabase
-        .from('game_players')
+        .from('safe_game_players')
         .select('*')
         .eq('game_room_id', gameRoomId)
         .order('position');

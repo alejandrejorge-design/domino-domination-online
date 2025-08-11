@@ -62,7 +62,7 @@ const AdminDashboard = () => {
 
       // Fetch all players
       const { data: playersData, error: playersError } = await supabase
-        .from('game_players')
+        .from('safe_game_players')
         .select('*')
         .order('joined_at', { ascending: false });
 
