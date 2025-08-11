@@ -158,10 +158,10 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
       const usedPositions = connectedPlayers?.map(p => p.position) || [];
       const nextPosition = [0, 1, 2, 3].find(pos => !usedPositions.includes(pos)) || 0;
 
-      // Join the game
-      const { error: insertError } = await supabase
+      // Use upsert to handle edge cases and prevent duplicate key errors
+      const { error: upsertError } = await supabase
         .from('game_players')
-        .insert({
+        .upsert({
           game_room_id: gameRoomId,
           user_id: user.id,
           display_name: user.user_metadata?.display_name || user.email,
@@ -170,9 +170,11 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
           score: 0,
           is_current_player: false,
           is_connected: true,
+        }, {
+          onConflict: 'game_room_id,user_id'
         });
 
-      if (insertError) throw insertError;
+      if (upsertError) throw upsertError;
 
       // Get updated player count
       const { data: updatedPlayers } = await supabase
