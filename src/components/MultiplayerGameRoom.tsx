@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { filterPlayerData } from '@/utils/playerUtils';
@@ -53,34 +54,68 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
       fetchPlayers();
     });
 
-    // Subscribe to real-time updates
-    const playersSubscription = supabase
+    // Subscribe to real-time updates with payload logging
+    const playersChannel = supabase
       .channel(`game_players_${gameRoomId}`)
-      .on('postgres_changes', 
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'game_players', filter: `game_room_id=eq.${gameRoomId}` },
-        () => {
+        (payload) => {
+          console.log('[realtime] game_players change:', payload);
+          // Refresh both players and room counts
           fetchPlayers();
-        }
-      )
-      .subscribe();
-
-    const roomSubscription = supabase
-      .channel(`game_room_${gameRoomId}`)
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'game_rooms', filter: `id=eq.${gameRoomId}` },
-        () => {
           fetchGameRoom();
         }
       )
       .subscribe();
+    console.log('[realtime] subscribed to game_players channel for room', gameRoomId);
+
+    const roomChannel = supabase
+      .channel(`game_room_${gameRoomId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_rooms', filter: `id=eq.${gameRoomId}` },
+        (payload) => {
+          console.log('[realtime] game_rooms change:', payload);
+          fetchGameRoom();
+          // In case the status changed (e.g., waiting -> playing), also refresh players
+          fetchPlayers();
+        }
+      )
+      .subscribe();
+    console.log('[realtime] subscribed to game_rooms channel for room', gameRoomId);
 
     // Cleanup when leaving
     return () => {
-      playersSubscription.unsubscribe();
-      roomSubscription.unsubscribe();
+      try {
+        supabase.removeChannel(playersChannel);
+        supabase.removeChannel(roomChannel);
+      } catch (e) {
+        console.warn('Error removing realtime channels, trying unsubscribe()', e);
+        // Fallback to unsubscribe if needed
+        // @ts-expect-error - unsubscribe exists on RealtimeChannel
+        playersChannel?.unsubscribe?.();
+        // @ts-expect-error - unsubscribe exists on RealtimeChannel
+        roomChannel?.unsubscribe?.();
+      }
       leaveGameRoom();
     };
   }, [gameRoomId, user.id]);
+
+  // Lightweight polling fallback while waiting, complements realtime
+  useEffect(() => {
+    if (gameRoom?.status === 'waiting') {
+      console.log('[polling] starting fallback polling while waiting');
+      const id = setInterval(() => {
+        fetchPlayers();
+        fetchGameRoom();
+      }, 3000);
+      return () => {
+        console.log('[polling] stopping fallback polling');
+        clearInterval(id);
+      };
+    }
+  }, [gameRoom?.status, gameRoomId]);
 
   const fetchGameRoom = async () => {
     try {
