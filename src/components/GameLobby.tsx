@@ -96,6 +96,15 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
 
     setCreating(true);
     try {
+      // Validate active session before creating room
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) { console.warn('Session error on createGameRoom:', sessionError); }
+      if (!sessionData?.session?.user) {
+        toast({ title: 'Authentication required', description: 'Please sign in again and retry.', variant: 'destructive' });
+        setCreating(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('game_rooms')
         .insert({
@@ -131,6 +140,12 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
 
   const joinGameRoom = async (roomId: string) => {
     try {
+      // Validate active session before joining
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.user) {
+        toast({ title: 'Authentication required', description: 'Please sign in to join rooms.', variant: 'destructive' });
+        return;
+      }
       // Check if room is still available
       const { data: room, error: roomError } = await supabase
         .from('game_rooms')
