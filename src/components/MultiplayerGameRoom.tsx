@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { filterPlayerData } from '@/utils/playerUtils';
@@ -93,9 +92,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
       } catch (e) {
         console.warn('Error removing realtime channels, trying unsubscribe()', e);
         // Fallback to unsubscribe if needed
-        // @ts-expect-error - unsubscribe exists on RealtimeChannel
         playersChannel?.unsubscribe?.();
-        // @ts-expect-error - unsubscribe exists on RealtimeChannel
         roomChannel?.unsubscribe?.();
       }
       leaveGameRoom();
