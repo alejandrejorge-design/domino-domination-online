@@ -259,24 +259,52 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       const domino = playerHand.find((d: Domino) => d.id === dominoId);
       if (!domino) return;
 
-      // Calculate new ends and placement
-      let newLeftEnd = gameState.left_end;
-      let newRightEnd = gameState.right_end;
+      const leftEnd = gameState.left_end;
+      const rightEnd = gameState.right_end;
 
-      const isFirstMove = (gameState.left_end === null && gameState.right_end === null) || placedDominoes.length === 0;
+      // Determine if this is the very first move
+      const isFirstMove = (leftEnd === null && rightEnd === null) || placedDominoes.length === 0;
+
+      // Validate the chosen side specifically (prevents illegal side placement)
+      if (!isFirstMove) {
+        if (side === 'left') {
+          if (leftEnd !== null && domino.left !== leftEnd && domino.right !== leftEnd) {
+            toast({
+              title: 'Illegal move',
+              description: `Domino ${domino.left}-${domino.right} doesn't match left end (${leftEnd}).`,
+              variant: 'destructive',
+            });
+            return;
+          }
+        } else {
+          if (rightEnd !== null && domino.left !== rightEnd && domino.right !== rightEnd) {
+            toast({
+              title: 'Illegal move',
+              description: `Domino ${domino.left}-${domino.right} doesn't match right end (${rightEnd})..`,
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
+      }
+
+      // Calculate new ends
+      let newLeftEnd = leftEnd;
+      let newRightEnd = rightEnd;
+
       if (isFirstMove) {
-        // First move: both ends should be set from the played domino
+        // First move: both ends are set from the played domino
         newLeftEnd = domino.left;
         newRightEnd = domino.right;
       } else if (side === 'left') {
-        const oriented = getPlayOrientation(domino, gameState.left_end ?? domino.left, 'left');
-        newLeftEnd = gameState.left_end === oriented.left ? oriented.right : oriented.left;
+        if (leftEnd === domino.left) newLeftEnd = domino.right;
+        else if (leftEnd === domino.right) newLeftEnd = domino.left;
       } else {
-        const oriented = getPlayOrientation(domino, gameState.right_end ?? domino.right, 'right');
-        newRightEnd = gameState.right_end === oriented.right ? oriented.left : oriented.right;
+        if (rightEnd === domino.left) newRightEnd = domino.right;
+        else if (rightEnd === domino.right) newRightEnd = domino.left;
       }
 
-      // Create placed domino
+      // Create placed domino (visual positioning handled by flex order)
       const newPlacedDomino: PlacedDomino = {
         ...domino,
         x: placedDominoes.length * 70,
@@ -297,8 +325,11 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       const currentIdx = Math.max(0, order.indexOf(user.id));
       const nextPlayerId = order.length > 0 ? order[(currentIdx + 1) % order.length] : user.id;
 
-      // Update game state
-      const newPlacedDominoes = [...placedDominoes, newPlacedDomino];
+      // Update game state: prepend for left, append for right
+      const newPlacedDominoes = side === 'left'
+        ? [newPlacedDomino, ...placedDominoes]
+        : [...placedDominoes, newPlacedDomino];
+
       await supabase
         .from('game_state')
         .update({
@@ -308,6 +339,8 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
           current_player_id: nextPlayerId,
         } as any)
         .eq('game_room_id', gameRoomId);
+
+      setSelectedDomino(null);
 
       toast({
         title: 'Domino Played!',
