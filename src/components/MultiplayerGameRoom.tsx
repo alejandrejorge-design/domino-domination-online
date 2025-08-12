@@ -46,6 +46,8 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
     handleDominoClick,
     handleBoardClick,
     isHost,
+    // new: passing turns
+    passTurn,
   } = useMultiplayerGame(gameRoomId, user);
 
   const [hasAnnouncedStart, setHasAnnouncedStart] = useState(false);
@@ -163,7 +165,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
       if (error) throw error;
       
       // Filter player data to ensure security - only current user can see their own hand
-      const filteredPlayers = filterPlayerData((data || []) as any, user.id) as any as GamePlayer[];
+      const filteredPlayers = filterPlayerData((data || []) as any, user.id, gameRoom?.status === 'finished') as any as GamePlayer[];
       setPlayers(filteredPlayers);
     } catch (error: any) {
       console.error('Fetch players error:', error);
@@ -344,12 +346,12 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
             {/* Player Hand */}
             {currentPlayer && (
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-3">
                 <div className="flex gap-2 p-2 bg-secondary/80 backdrop-blur-sm rounded-lg">
                   {currentPlayer.hand.map((domino: any) => (
                     <div
                       key={domino.id}
-                      onClick={() => (gameState?.current_player_id === user.id ? handleDominoClick(domino.id) : null)}
+                      onClick={() => (gameState?.current_player_id === user.id && gameRoom?.status === 'in_progress' ? handleDominoClick(domino.id) : null)}
                       className={`cursor-pointer transform transition-all duration-200 ${
                         gameState?.current_player_id === user.id && playableDominoes.includes(domino.id)
                           ? 'hover:scale-110 hover:-translate-y-2 ring-2 ring-accent'
@@ -367,6 +369,18 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
                     </div>
                   ))}
                 </div>
+                {/* Pass button */}
+                {gameRoom?.status === 'in_progress' && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={passTurn}
+                    disabled={gameState?.current_player_id !== user.id || playableDominoes.length > 0}
+                    title={playableDominoes.length > 0 ? 'You have a playable domino' : ''}
+                  >
+                    Pass
+                  </Button>
+                )}
               </div>
             )}
 
@@ -381,18 +395,27 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
                 >
                   <div className="font-medium text-secondary-foreground">{player.display_name}</div>
                   <div className="text-sm text-muted-foreground">
-                    {(player.hand_count ?? 0)} dominoes • {player.score} points
+                    {(player.hand_count ?? player.hand?.length ?? 0)} dominoes • {player.score} points
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {Array.from({ length: player.hand_count ?? 0 }).map((_, i) => (
-                      <DominoTile
-                        key={`back-${player.id}-${i}`}
-                        domino={{ id: `back-${player.id}-${i}`, left: 0, right: 0, isDouble: false }}
-                        size="small"
-                        faceDown
-                        className="cursor-default pointer-events-none"
-                      />
-                    ))}
+                    {gameRoom?.status === 'finished'
+                      ? (player.hand || []).map((domino: any) => (
+                          <DominoTile
+                            key={domino.id}
+                            domino={domino}
+                            size="small"
+                            className="cursor-default pointer-events-none"
+                          />
+                        ))
+                      : Array.from({ length: player.hand_count ?? 0 }).map((_, i) => (
+                          <DominoTile
+                            key={`back-${player.id}-${i}`}
+                            domino={{ id: `back-${player.id}-${i}`, left: 0, right: 0, isDouble: false }}
+                            size="small"
+                            faceDown
+                            className="cursor-default pointer-events-none"
+                          />
+                        ))}
                   </div>
                 </div>
               ))}

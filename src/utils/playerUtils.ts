@@ -17,8 +17,9 @@ export interface SafePlayerData {
 /**
  * Filters player data to ensure other players' hands are not exposed
  * Only the current user can see their own hand, others see empty hands
+ * If showAll is true (e.g., when the game is finished), everyone can see all hands
  */
-export const filterPlayerData = (players: SafePlayerData[], currentUserId: string): SafePlayerData[] => {
+export const filterPlayerData = (players: SafePlayerData[], currentUserId: string, showAll: boolean = false): SafePlayerData[] => {
   return players.map(player => {
     // Normalize hand to an array for counting and safe return
     let normalizedHand: any[] = [];
@@ -34,7 +35,7 @@ export const filterPlayerData = (players: SafePlayerData[], currentUserId: strin
 
     return {
       ...player,
-      hand: player.user_id === currentUserId ? normalizedHand : [],
+      hand: showAll ? normalizedHand : (player.user_id === currentUserId ? normalizedHand : []),
       hand_count: normalizedHand.length,
     } as SafePlayerData;
   });

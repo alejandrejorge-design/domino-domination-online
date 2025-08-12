@@ -262,8 +262,13 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       // Calculate new ends and placement
       let newLeftEnd = gameState.left_end;
       let newRightEnd = gameState.right_end;
-      
-      if (side === 'left') {
+
+      const isFirstMove = (gameState.left_end === null && gameState.right_end === null) || placedDominoes.length === 0;
+      if (isFirstMove) {
+        // First move: both ends should be set from the played domino
+        newLeftEnd = domino.left;
+        newRightEnd = domino.right;
+      } else if (side === 'left') {
         const oriented = getPlayOrientation(domino, gameState.left_end ?? domino.left, 'left');
         newLeftEnd = gameState.left_end === oriented.left ? oriented.right : oriented.left;
       } else {
@@ -317,6 +322,72 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
     }
   };
 
+  const passTurn = async () => {
+    try {
+      // Only the current player can pass
+      if (gameState?.current_player_id !== user.id) return;
+
+      // Prevent passing if player has a playable domino
+      if (playableDominoes.length > 0) {
+        toast({
+          title: 'Cannot Pass',
+          description: 'You have a playable domino.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Fetch all players to determine if anyone can play
+      const { data: players, error: playersError } = await supabase
+        .from('game_players')
+        .select('id, user_id, hand, position')
+        .eq('game_room_id', gameRoomId)
+        .order('position');
+      if (playersError) throw playersError;
+
+      const leftEnd = gameState?.left_end ?? null;
+      const rightEnd = gameState?.right_end ?? null;
+
+      const anyoneCanPlay = (players || []).some((p) => {
+        let hand: Domino[] = [];
+        try {
+          if (typeof p.hand === 'string') hand = JSON.parse(p.hand as any);
+          else if (Array.isArray(p.hand)) hand = p.hand as unknown as Domino[];
+        } catch {
+          hand = [];
+        }
+        return hand.some((d) => canPlayDomino(d, leftEnd, rightEnd));
+      });
+
+      if (!anyoneCanPlay) {
+        // End the game: update room status and clear current player
+        await supabase.from('game_rooms').update({ status: 'finished' }).eq('id', gameRoomId);
+        await supabase.from('game_state').update({ current_player_id: null as any }).eq('game_room_id', gameRoomId);
+
+        toast({
+          title: 'Round Ended',
+          description: 'No one can play. Hands are revealed.',
+        });
+        return;
+      }
+
+      // Advance to next player
+      const order: string[] = Array.isArray(gameState?.turn_order) ? (gameState.turn_order as unknown as string[]) : [];
+      const currentIdx = Math.max(0, order.indexOf(user.id));
+      const nextPlayerId = order.length > 0 ? order[(currentIdx + 1) % order.length] : user.id;
+
+      await supabase
+        .from('game_state')
+        .update({ current_player_id: nextPlayerId } as any)
+        .eq('game_room_id', gameRoomId);
+
+      toast({ title: 'Passed', description: 'Turn passed to next player.' });
+    } catch (error: any) {
+      console.error('Pass turn error:', error);
+      toast({ title: 'Error', description: 'Failed to pass turn', variant: 'destructive' });
+    }
+  };
+
   return {
     gameState,
     placedDominoes,
@@ -326,5 +397,6 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
     handleDominoClick,
     handleBoardClick,
     isHost,
+    passTurn,
   };
 };
