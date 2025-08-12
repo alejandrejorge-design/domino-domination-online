@@ -423,7 +423,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
             {/* Selected domino indicator */}
             {selectedDomino && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+              <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none">
                 <div className="bg-accent/90 backdrop-blur-sm rounded-lg p-4 text-center">
                   <div className="text-accent-foreground font-medium mb-2">
                     Choose which end to play on
