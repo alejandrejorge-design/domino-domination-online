@@ -105,22 +105,42 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('game_rooms')
-        .insert({
-          name: roomName.trim(),
-          host_id: user.id,
-          status: 'waiting',
-          max_players: 4,
-          current_players: 1,
-        })
-        .select()
-        .single();
+      const tryCreateOnce = async () => {
+        const { data, error } = await supabase
+          .from('game_rooms')
+          .insert({
+            name: roomName.trim(),
+            host_id: user.id,
+            status: 'waiting',
+            max_players: 4,
+            current_players: 1,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      };
 
-      if (error) throw error;
+      let room: any = null;
+      let lastErr: any = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          room = await tryCreateOnce();
+          lastErr = null;
+          break;
+        } catch (err: any) {
+          lastErr = err;
+          console.warn(`Create room attempt ${attempt} failed:`, err?.message || err);
+          if (attempt >= 3) break;
+          await new Promise((res) => setTimeout(res, 300 * attempt));
+          await supabase.auth.getSession();
+        }
+      }
+
+      if (lastErr) throw lastErr;
 
       // Join the created room
-      onJoinGame(data.id);
+      onJoinGame(room.id);
       
       toast({
         title: "Room Created!",
@@ -129,7 +149,7 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create game room",
+        description: `Failed to create game room: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {

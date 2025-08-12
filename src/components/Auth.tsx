@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Mail, Lock } from 'lucide-react';
+import { cleanupAuthState } from '@/utils/authCleanup';
 
 interface AuthProps {
   onAuthSuccess: () => void;
@@ -24,10 +25,20 @@ const Auth = ({ onAuthSuccess }: AuthProps) => {
     setLoading(true);
 
     try {
+      // Clean up existing auth state and attempt a global sign out to avoid limbo states
+      try {
+        cleanupAuthState();
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (_) {
+        // ignore sign out errors
+      }
+
+      const redirectUrl = `${window.location.origin}/`;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: redirectUrl,
           data: {
             display_name: displayName,
           },
@@ -59,6 +70,14 @@ const Auth = ({ onAuthSuccess }: AuthProps) => {
     setLoading(true);
 
     try {
+      // Clean up existing auth state and attempt a global sign out first
+      try {
+        cleanupAuthState();
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (_) {
+        // ignore
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -71,7 +90,8 @@ const Auth = ({ onAuthSuccess }: AuthProps) => {
           title: "Welcome back!",
           description: "Successfully signed in.",
         });
-        onAuthSuccess();
+        // Force a full page refresh to ensure a clean state
+        window.location.href = '/';
       }
     } catch (error: any) {
       toast({
