@@ -382,7 +382,7 @@ export const QATestFramework = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-foreground mb-2">{issue.description}</p>
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex justify-between text-xs text-foreground/70">
                   <span>Reporter: {issue.user}</span>
                   <span>{new Date(issue.timestamp).toLocaleString()}</span>
                 </div>
