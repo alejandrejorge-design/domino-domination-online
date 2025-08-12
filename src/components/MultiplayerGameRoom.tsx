@@ -144,7 +144,8 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
       const displayName = session.user.user_metadata?.display_name || session.user.email;
 
-      const { error } = await supabase.rpc('join_game_room_atomic', {
+      // Cast to any because generated Supabase types don't yet include this RPC
+      const { error } = await (supabase as any).rpc('join_game_room_atomic', {
         p_game_room_id: gameRoomId,
         p_display_name: displayName,
       });
