@@ -171,7 +171,8 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       if (stateError) throw stateError;
 
       // Update room status
-      await supabase.from('game_rooms').update({ status: 'playing' }).eq('id', gameRoomId);
+      const { error: roomError } = await supabase.from('game_rooms').update({ status: 'in_progress' }).eq('id', gameRoomId);
+      if (roomError) throw roomError;
 
       toast({
         title: 'Game Started!',

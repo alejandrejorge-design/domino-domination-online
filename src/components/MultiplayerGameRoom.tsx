@@ -47,6 +47,9 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
     isHost,
   } = useMultiplayerGame(gameRoomId, user);
 
+  const [hasAnnouncedStart, setHasAnnouncedStart] = useState(false);
+  const isPlaying = gameRoom?.status === 'in_progress' || Boolean(gameState?.current_player_id);
+
   useEffect(() => {
     joinGameRoom().then(() => {
       fetchGameRoom();
@@ -101,7 +104,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
   // Lightweight polling fallback while waiting, complements realtime
   useEffect(() => {
-    if (gameRoom?.status === 'waiting') {
+    if (!isPlaying) {
       console.log('[polling] starting fallback polling while waiting');
       const id = setInterval(() => {
         fetchPlayers();
@@ -112,7 +115,22 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
         clearInterval(id);
       };
     }
-  }, [gameRoom?.status, gameRoomId]);
+  }, [isPlaying, gameRoomId]);
+
+  // Announce game start to all clients once we detect active state
+  useEffect(() => {
+    if (isPlaying && gameState?.current_player_id && !hasAnnouncedStart) {
+      const starter = players.find(p => p.user_id === gameState.current_player_id);
+      toast({
+        title: 'Game Started!',
+        description: `${starter?.display_name || 'A player'} goes first.`,
+      });
+      setHasAnnouncedStart(true);
+    }
+    if (!isPlaying && hasAnnouncedStart) {
+      setHasAnnouncedStart(false);
+    }
+  }, [isPlaying, gameState?.current_player_id, players, hasAnnouncedStart, toast]);
 
   const fetchGameRoom = async () => {
     try {
@@ -264,9 +282,9 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
           </div>
           
           <div className="flex items-center gap-4">
-            <Badge variant={gameRoom?.status === 'playing' ? 'default' : 'secondary'}>
+            <Badge variant={gameRoom?.status === 'in_progress' ? 'default' : 'secondary'}>
               {gameRoom?.status === 'waiting' ? 'Waiting for players' : 
-               gameRoom?.status === 'playing' ? 'Game in progress' : 'Game finished'}
+               gameRoom?.status === 'in_progress' ? 'Game in progress' : 'Game finished'}
             </Badge>
             
             {canStartGame && (
@@ -278,7 +296,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
           </div>
         </div>
 
-        {gameRoom?.status === 'waiting' ? (
+        {!isPlaying ? (
           /* Waiting Room */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[0, 1, 2, 3].map((position) => {
@@ -391,9 +409,9 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
         {/* Game Instructions */}
         <div className="mt-6 bg-muted/50 backdrop-blur-sm rounded-lg p-4">
           <h3 className="font-semibold text-foreground mb-2">
-            {gameRoom?.status === 'waiting' ? 'Waiting for Players' : 'How to Play:'}
+            {!isPlaying ? 'Waiting for Players' : 'How to Play:'}
           </h3>
-          {gameRoom?.status === 'waiting' ? (
+          {!isPlaying ? (
             <p className="text-sm text-muted-foreground">
               Share the room ID with friends to invite them. Need at least 2 players to start.
               {isHost && ' As the host, you can start the game when ready.'}

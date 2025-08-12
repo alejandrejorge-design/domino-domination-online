@@ -11,7 +11,7 @@ type GameRoom = {
   id: string;
   name: string;
   host_id: string;
-  status: 'waiting' | 'playing' | 'finished';
+  status: 'waiting' | 'in_progress' | 'finished';
   max_players: number;
   current_players: number;
   created_at: string;
@@ -77,7 +77,7 @@ const GameLobby = ({ user, onJoinGame, onSignOut }: GameLobbyProps) => {
       if (error) throw error;
       setGameRooms((data || []).map(room => ({
         ...room,
-        status: room.status as 'waiting' | 'playing' | 'finished'
+        status: room.status as 'waiting' | 'in_progress' | 'finished'
       })));
     } catch (error: any) {
       toast({

@@ -73,7 +73,7 @@ const AdminDashboard = () => {
 
       // Calculate stats
       const totalRooms = roomsData?.length || 0;
-      const activeRooms = roomsData?.filter(room => room.status === 'playing').length || 0;
+      const activeRooms = roomsData?.filter(room => room.status === 'in_progress').length || 0;
       const waitingRooms = roomsData?.filter(room => room.status === 'waiting').length || 0;
       const totalPlayers = playersData?.length || 0;
 
@@ -168,7 +168,7 @@ const AdminDashboard = () => {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       waiting: 'outline',
-      playing: 'default',
+      in_progress: 'default',
       finished: 'secondary',
     };
     
