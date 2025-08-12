@@ -48,9 +48,10 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
   } = useMultiplayerGame(gameRoomId, user);
 
   useEffect(() => {
-    fetchGameRoom();
-    fetchPlayers();
-    joinGameRoom();
+    joinGameRoom().then(() => {
+      fetchGameRoom();
+      fetchPlayers();
+    });
 
     // Subscribe to real-time updates
     const playersSubscription = supabase
@@ -131,14 +132,9 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
   const joinGameRoom = async () => {
     try {
-      console.log('joinGameRoom called, user prop:', user);
-
       // Double-check authentication state
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('Current session:', session, 'Session error:', sessionError);
-
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
-        console.log('No valid session found');
         toast({
           title: 'Authentication Error',
           description: 'Please sign in again to join the game.',
@@ -146,93 +142,43 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
         });
         return;
       }
-
       const authUserId = session.user.id;
-      console.log('Using authenticated user ID:', authUserId);
 
-      // Check if already joined
-      const { data: existingPlayer } = await supabase
+      // First try to mark existing membership as connected (works without SELECT)
+      const { data: updatedExisting } = await supabase
         .from('game_players')
-        .select('*')
+        .update({ is_connected: true })
         .eq('game_room_id', gameRoomId)
         .eq('user_id', authUserId)
-        .maybeSingle();
+        .select('id');
+      if ((updatedExisting || []).length > 0) return;
 
-      if (existingPlayer) {
-        // Update connection status
-        await supabase
-          .from('game_players')
-          .update({ is_connected: true })
-          .eq('id', existingPlayer.id);
+      // Check room capacity (publicly readable)
+      const { data: room, error: roomError } = await supabase
+        .from('game_rooms')
+        .select('current_players, max_players')
+        .eq('id', gameRoomId)
+        .single();
+      if (roomError) throw roomError;
+      if (room.current_players >= room.max_players) {
+        toast({ title: 'Room Full', description: 'This game room is already full.', variant: 'destructive' });
         return;
       }
 
-      // Find next available position (only consider connected players)
-      const { data: connectedPlayers } = await supabase
-        .from('game_players')
-        .select('position')
-        .eq('game_room_id', gameRoomId)
-        .eq('is_connected', true);
+      const nextPosition = Math.min(3, Math.max(0, room.current_players));
 
-      const usedPositions = connectedPlayers?.map((p) => p.position) || [];
-      const nextPosition = [0, 1, 2, 3].find((pos) => !usedPositions.includes(pos)) || 0;
-
-      const attemptJoinOnce = async () => {
-        console.log('Attempting to insert player with data:', {
-          game_room_id: gameRoomId,
-          user_id: authUserId,
-          display_name: session.user.user_metadata?.display_name || session.user.email,
-          position: nextPosition,
-        });
-
-        // Insert new player record using authenticated user ID
-        const { error: insertError } = await supabase.from('game_players').insert({
-          game_room_id: gameRoomId,
-          user_id: authUserId, // Use session user ID to match auth.uid()
-          display_name: session.user.user_metadata?.display_name || session.user.email,
-          position: nextPosition,
-          hand: [],
-          score: 0,
-          is_current_player: false,
-          is_connected: true,
-        });
-        if (insertError) throw insertError;
-
-        // Get updated player count
-        const { data: updatedPlayers, error: countError } = await supabase
-          .from('game_players')
-          .select('id')
-          .eq('game_room_id', gameRoomId);
-        if (countError) throw countError;
-        const playerCount = updatedPlayers?.length || 1;
-
-        // Update room player count
-        const { error: updateError } = await supabase
-          .from('game_rooms')
-          .update({ current_players: playerCount })
-          .eq('id', gameRoomId);
-        if (updateError) throw updateError;
-      };
-
-      // Retry logic for transient auth/RLS timing issues
-      let lastErr: any = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          await attemptJoinOnce();
-          lastErr = null;
-          break;
-        } catch (err: any) {
-          lastErr = err;
-          const msg = String(err?.message || err);
-          console.warn(`Join attempt ${attempt} failed:`, msg);
-          if (attempt >= 3) break;
-          // brief backoff and re-validate session
-          await new Promise((res) => setTimeout(res, 300 * attempt));
-          await supabase.auth.getSession();
-        }
-      }
-
-      if (lastErr) throw lastErr;
+      // Insert new player membership (RLS requires user_id = auth.uid())
+      const { error: insertError } = await supabase.from('game_players').insert({
+        game_room_id: gameRoomId,
+        user_id: authUserId,
+        display_name: session.user.user_metadata?.display_name || session.user.email,
+        position: nextPosition,
+        hand: [],
+        score: 0,
+        is_current_player: false,
+        is_connected: true,
+      });
+      if (insertError) throw insertError;
     } catch (error: any) {
       console.error('Join room error:', error);
       toast({
@@ -390,8 +336,8 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
             <GameBoard
               placedDominoes={placedDominoes}
               onBoardClick={selectedDomino ? handleBoardClick : undefined}
-              leftEnd={gameState?.leftEnd || null}
-              rightEnd={gameState?.rightEnd || null}
+              leftEnd={gameState?.left_end || null}
+              rightEnd={gameState?.right_end || null}
             />
 
             {/* Player Hand */}
@@ -401,11 +347,11 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
                   {currentPlayer.hand.map((domino: any) => (
                     <div
                       key={domino.id}
-                      onClick={() => currentPlayer.is_current_player ? handleDominoClick(domino.id) : null}
+                      onClick={() => (gameState?.current_player_id === user.id ? handleDominoClick(domino.id) : null)}
                       className={`cursor-pointer transform transition-all duration-200 ${
-                        currentPlayer.is_current_player && playableDominoes.includes(domino.id)
+                        gameState?.current_player_id === user.id && playableDominoes.includes(domino.id)
                           ? 'hover:scale-110 hover:-translate-y-2 ring-2 ring-accent'
-                          : currentPlayer.is_current_player
+                          : gameState?.current_player_id === user.id
                           ? 'hover:scale-105 opacity-60'
                           : 'opacity-40 cursor-not-allowed'
                       }`}
@@ -414,7 +360,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
                         domino={domino}
                         rotation={0}
                         selected={selectedDomino === domino.id}
-                        playable={currentPlayer.is_current_player && playableDominoes.includes(domino.id)}
+                        playable={gameState?.current_player_id === user.id && playableDominoes.includes(domino.id)}
                       />
                     </div>
                   ))}

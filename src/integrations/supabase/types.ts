@@ -215,6 +215,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      recount_game_room_players: {
+        Args: { room_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

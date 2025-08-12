@@ -53,9 +53,9 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         .from('game_state')
         .select('*')
         .eq('game_room_id', gameRoomId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows found
+      if (error) throw error;
       
       if (data) {
         setGameState(data);
@@ -73,16 +73,16 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         }
         setPlacedDominoes(parsedPlacedDominoes);
         
-        // Calculate playable dominoes for current user
-        const currentPlayer = await getCurrentPlayer();
-        if (currentPlayer?.is_current_player) {
+        // Calculate playable dominoes for current user (based on game_state.current_player_id)
+        if (data.current_player_id === user.id) {
+          const currentPlayer = await getCurrentPlayer();
           // Parse player hand from JSON
           let playerHand: Domino[] = [];
           try {
-            if (typeof currentPlayer.hand === 'string') {
-              playerHand = JSON.parse(currentPlayer.hand);
-            } else if (Array.isArray(currentPlayer.hand)) {
-              playerHand = currentPlayer.hand as unknown as Domino[];
+            if (typeof currentPlayer?.hand === 'string') {
+              playerHand = JSON.parse(currentPlayer?.hand as any);
+            } else if (Array.isArray(currentPlayer?.hand)) {
+              playerHand = currentPlayer?.hand as unknown as Domino[];
             }
           } catch (e) {
             playerHand = [];
@@ -135,7 +135,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
 
       if (playersError) throw playersError;
 
-      // Update each player's hand
+      // Update each player's hand (host can update due to policy)
       for (let i = 0; i < players.length; i++) {
         await supabase
           .from('game_players')
@@ -143,71 +143,61 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
           .eq('id', players[i].id);
       }
 
-      // Find starting player
-      const startingPlayerIndex = findStartingPlayer(players.map(p => ({ 
-        ...p, 
-        name: p.display_name || '',
-        isCurrentPlayer: p.is_current_player,
-        hand: playerHands[p.position] || [] 
-      })));
-      
-      // Set current player
-      await supabase
-        .from('game_players')
-        .update({ is_current_player: false })
-        .eq('game_room_id', gameRoomId);
+      // Determine turn order and starting player
+      const turnOrder: string[] = players.map((p) => p.user_id);
+      const startingPlayerIndex = findStartingPlayer(
+        players.map((p) => ({
+          ...p,
+          name: p.display_name || '',
+          isCurrentPlayer: false,
+          hand: playerHands[p.position] || [],
+        }))
+      );
+      const startingPlayerId = players[startingPlayerIndex].user_id;
 
-      await supabase
-        .from('game_players')
-        .update({ is_current_player: true })
-        .eq('id', players[startingPlayerIndex].id);
-
-      // Create game state
+      // Reset existing game state (if any), then insert a clean one
+      await supabase.from('game_state').delete().eq('game_room_id', gameRoomId);
       const { error: stateError } = await supabase
         .from('game_state')
-        .upsert({
+        .insert({
           game_room_id: gameRoomId,
-          board: [],
-          boneyard,
-          left_end: null,
-          right_end: null,
-          current_player_position: players[startingPlayerIndex].position,
-          game_phase: 'playing',
-          placed_dominoes: [],
-          last_move: null,
-        });
-
+          left_end: null as any,
+          right_end: null as any,
+          placed_dominoes: [] as any,
+          current_player_id: startingPlayerId,
+          turn_order: turnOrder as any,
+          dominoes: boneyard as any,
+        } as any);
       if (stateError) throw stateError;
 
       // Update room status
-      await supabase
-        .from('game_rooms')
-        .update({ status: 'playing' })
-        .eq('id', gameRoomId);
+      await supabase.from('game_rooms').update({ status: 'playing' }).eq('id', gameRoomId);
 
       toast({
-        title: "Game Started!",
+        title: 'Game Started!',
         description: `${players[startingPlayerIndex].display_name} goes first.`,
       });
     } catch (error: any) {
       console.error('Start game error:', error);
       toast({
-        title: "Error",
+        title: 'Error',
         description: `Failed to start game: ${error.message}`,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   }, [gameRoomId, isHost, toast]);
 
   const handleDominoClick = useCallback(async (dominoId: string) => {
+    // Only the current player (from game_state) can act
+    if (gameState?.current_player_id !== user.id) return;
+
     const currentPlayer = await getCurrentPlayer();
-    if (!currentPlayer?.is_current_player) return;
 
     if (!playableDominoes.includes(dominoId)) {
       toast({
-        title: "Cannot Play",
-        description: "This domino cannot be played on either end.",
-        variant: "destructive",
+        title: 'Cannot Play',
+        description: 'This domino cannot be played on either end.',
+        variant: 'destructive',
       });
       return;
     }
@@ -215,10 +205,10 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
     // Check if we need to select which end to play on
     let playerHand: Domino[] = [];
     try {
-      if (typeof currentPlayer.hand === 'string') {
-        playerHand = JSON.parse(currentPlayer.hand);
-      } else if (Array.isArray(currentPlayer.hand)) {
-        playerHand = currentPlayer.hand as unknown as Domino[];
+      if (typeof currentPlayer?.hand === 'string') {
+        playerHand = JSON.parse(currentPlayer?.hand);
+      } else if (Array.isArray(currentPlayer?.hand)) {
+        playerHand = currentPlayer?.hand as unknown as Domino[];
       }
     } catch (e) {
       playerHand = [];
@@ -249,15 +239,17 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
 
   const playDomino = async (dominoId: string, side: 'left' | 'right') => {
     try {
+      // Only the current player (from game_state) can act
+      if (gameState?.current_player_id !== user.id) return;
+
       const currentPlayer = await getCurrentPlayer();
-      if (!currentPlayer?.is_current_player) return;
 
       let playerHand: Domino[] = [];
       try {
-        if (typeof currentPlayer.hand === 'string') {
-          playerHand = JSON.parse(currentPlayer.hand);
-        } else if (Array.isArray(currentPlayer.hand)) {
-          playerHand = currentPlayer.hand as unknown as Domino[];
+        if (typeof currentPlayer?.hand === 'string') {
+          playerHand = JSON.parse(currentPlayer?.hand);
+        } else if (Array.isArray(currentPlayer?.hand)) {
+          playerHand = currentPlayer?.hand as unknown as Domino[];
         }
       } catch (e) {
         playerHand = [];
@@ -271,10 +263,10 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       let newRightEnd = gameState.right_end;
       
       if (side === 'left') {
-        const oriented = getPlayOrientation(domino, gameState.left_end || domino.left, 'left');
+        const oriented = getPlayOrientation(domino, gameState.left_end ?? domino.left, 'left');
         newLeftEnd = gameState.left_end === oriented.left ? oriented.right : oriented.left;
       } else {
-        const oriented = getPlayOrientation(domino, gameState.right_end || domino.right, 'right');
+        const oriented = getPlayOrientation(domino, gameState.right_end ?? domino.right, 'right');
         newRightEnd = gameState.right_end === oriented.right ? oriented.left : oriented.right;
       }
 
@@ -294,56 +286,32 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         .update({ hand: JSON.stringify(newHand) })
         .eq('id', currentPlayer.id);
 
-      // Get next player
-      const { data: allPlayers } = await supabase
-        .from('game_players')
-        .select('*')
-        .eq('game_room_id', gameRoomId)
-        .order('position');
-
-      if (allPlayers) {
-        const currentIndex = allPlayers.findIndex(p => p.id === currentPlayer.id);
-        const nextIndex = (currentIndex + 1) % allPlayers.length;
-
-        // Update current player flags
-        await supabase
-          .from('game_players')
-          .update({ is_current_player: false })
-          .eq('id', currentPlayer.id);
-
-        await supabase
-          .from('game_players')
-          .update({ is_current_player: true })
-          .eq('id', allPlayers[nextIndex].id);
-      }
+      // Determine next player from turn_order
+      const order: string[] = Array.isArray(gameState?.turn_order) ? (gameState.turn_order as unknown as string[]) : [];
+      const currentIdx = Math.max(0, order.indexOf(user.id));
+      const nextPlayerId = order.length > 0 ? order[(currentIdx + 1) % order.length] : user.id;
 
       // Update game state
       const newPlacedDominoes = [...placedDominoes, newPlacedDomino];
       await supabase
         .from('game_state')
         .update({
-          board: [...(gameState.board || []), domino],
-          left_end: newLeftEnd,
-          right_end: newRightEnd,
-          placed_dominoes: JSON.stringify(newPlacedDominoes),
-          last_move: {
-            player_id: currentPlayer.user_id,
-            domino_id: dominoId,
-            side,
-            timestamp: new Date().toISOString(),
-          },
-        })
+          left_end: newLeftEnd as any,
+          right_end: newRightEnd as any,
+          placed_dominoes: newPlacedDominoes as any,
+          current_player_id: nextPlayerId,
+        } as any)
         .eq('game_room_id', gameRoomId);
 
       toast({
-        title: "Domino Played!",
+        title: 'Domino Played!',
         description: `You played ${domino.left}-${domino.right}`,
       });
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to play domino",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to play domino',
+        variant: 'destructive',
       });
     }
   };
