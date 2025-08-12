@@ -215,6 +215,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      join_game_room_atomic: {
+        Args: { p_game_room_id: string; p_display_name: string }
+        Returns: undefined
+      }
       recount_game_room_players: {
         Args: { room_id: string }
         Returns: undefined
