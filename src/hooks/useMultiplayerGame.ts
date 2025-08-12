@@ -139,7 +139,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       for (let i = 0; i < players.length; i++) {
         await supabase
           .from('game_players')
-          .update({ hand: JSON.stringify(playerHands[i] || []) })
+          .update({ hand: ((playerHands[i] || []) as any) })
           .eq('id', players[i].id);
       }
 
@@ -284,7 +284,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       const newHand = playerHand.filter((d: Domino) => d.id !== dominoId);
       await supabase
         .from('game_players')
-        .update({ hand: JSON.stringify(newHand) })
+        .update({ hand: (newHand as any) })
         .eq('id', currentPlayer.id);
 
       // Determine next player from turn_order

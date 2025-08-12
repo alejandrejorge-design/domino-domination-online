@@ -11,6 +11,7 @@ export interface SafePlayerData {
   is_current_player: boolean;
   is_connected: boolean;
   joined_at: string;
+  hand_count?: number;
 }
 
 /**
@@ -18,11 +19,25 @@ export interface SafePlayerData {
  * Only the current user can see their own hand, others see empty hands
  */
 export const filterPlayerData = (players: SafePlayerData[], currentUserId: string): SafePlayerData[] => {
-  return players.map(player => ({
-    ...player,
-    // Only show hand data if it's the current user
-    hand: player.user_id === currentUserId ? player.hand : []
-  }));
+  return players.map(player => {
+    // Normalize hand to an array for counting and safe return
+    let normalizedHand: any[] = [];
+    try {
+      if (Array.isArray(player.hand)) {
+        normalizedHand = player.hand as any[];
+      } else if (typeof player.hand === 'string') {
+        normalizedHand = JSON.parse(player.hand as string) || [];
+      }
+    } catch {
+      normalizedHand = [];
+    }
+
+    return {
+      ...player,
+      hand: player.user_id === currentUserId ? normalizedHand : [],
+      hand_count: normalizedHand.length,
+    } as SafePlayerData;
+  });
 };
 
 /**

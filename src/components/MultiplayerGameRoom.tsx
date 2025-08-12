@@ -17,6 +17,7 @@ type GamePlayer = {
   display_name: string;
   position: number;
   hand: any[];
+  hand_count?: number;
   score: number;
   is_current_player: boolean;
   is_connected: boolean;
@@ -162,11 +163,7 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
       if (error) throw error;
       
       // Filter player data to ensure security - only current user can see their own hand
-      const rawPlayers = (data || []).map(player => ({
-        ...player,
-        hand: Array.isArray(player.hand) ? player.hand : []
-      }));
-      const filteredPlayers = filterPlayerData(rawPlayers, user.id);
+      const filteredPlayers = filterPlayerData((data || []) as any, user.id) as any as GamePlayer[];
       setPlayers(filteredPlayers);
     } catch (error: any) {
       console.error('Fetch players error:', error);
@@ -384,7 +381,18 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
                 >
                   <div className="font-medium text-secondary-foreground">{player.display_name}</div>
                   <div className="text-sm text-muted-foreground">
-                    {player.hand.length} dominoes • {player.score} points
+                    {(player.hand_count ?? 0)} dominoes • {player.score} points
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {Array.from({ length: player.hand_count ?? 0 }).map((_, i) => (
+                      <DominoTile
+                        key={`back-${player.id}-${i}`}
+                        domino={{ id: `back-${player.id}-${i}`, left: 0, right: 0, isDouble: false }}
+                        size="small"
+                        faceDown
+                        className="cursor-default pointer-events-none"
+                      />
+                    ))}
                   </div>
                 </div>
               ))}

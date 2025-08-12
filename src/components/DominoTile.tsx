@@ -10,6 +10,7 @@ interface DominoTileProps {
   isPlayable?: boolean;
   selected?: boolean;
   playable?: boolean;
+  faceDown?: boolean;
 }
 
 const DominoTile = ({ 
@@ -20,7 +21,8 @@ const DominoTile = ({
   size = 'medium',
   isPlayable = false,
   selected = false,
-  playable = false
+  playable = false,
+  faceDown = false
 }: DominoTileProps) => {
   const renderPips = (value: number, isLeft: boolean) => {
     const pipPositions = {
@@ -76,19 +78,29 @@ const DominoTile = ({
       onClick={onClick}
       style={{ transform: `rotate(${rotation}deg)` }}
     >
-      {/* Top half */}
-      <div className="absolute top-1 left-1 right-1 h-[calc(50%-4px)] border-b border-domino-border/30 flex items-center justify-center">
-        {renderPips(domino.left, true)}
-      </div>
-      
-      {/* Bottom half */}
-      <div className="absolute bottom-1 left-1 right-1 h-[calc(50%-4px)] flex items-center justify-center">
-        {renderPips(domino.right, false)}
-      </div>
-      
-      {/* Center divider line for doubles */}
-      {domino.isDouble && (
-        <div className="absolute left-1/2 top-1 bottom-1 w-px bg-domino-border/30 transform -translate-x-1/2" />
+      {/* Faces */}
+      {faceDown ? (
+        <>
+          <div className="absolute top-1 left-1 right-1 h-[calc(50%-4px)] border-b border-domino-border/30" />
+          <div className="absolute bottom-1 left-1 right-1 h-[calc(50%-4px)]" />
+        </>
+      ) : (
+        <>
+          {/* Top half */}
+          <div className="absolute top-1 left-1 right-1 h-[calc(50%-4px)] border-b border-domino-border/30 flex items-center justify-center">
+            {renderPips(domino.left, true)}
+          </div>
+          
+          {/* Bottom half */}
+          <div className="absolute bottom-1 left-1 right-1 h-[calc(50%-4px)] flex items-center justify-center">
+            {renderPips(domino.right, false)}
+          </div>
+          
+          {/* Center divider line for doubles */}
+          {domino.isDouble && (
+            <div className="absolute left-1/2 top-1 bottom-1 w-px bg-domino-border/30 transform -translate-x-1/2" />
+          )}
+        </>
       )}
     </div>
   );
