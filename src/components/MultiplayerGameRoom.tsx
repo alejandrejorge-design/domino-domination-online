@@ -132,7 +132,6 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
   const joinGameRoom = async () => {
     try {
-      // Double-check authentication state
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         toast({
@@ -142,43 +141,15 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
         });
         return;
       }
-      const authUserId = session.user.id;
 
-      // First try to mark existing membership as connected (works without SELECT)
-      const { data: updatedExisting } = await supabase
-        .from('game_players')
-        .update({ is_connected: true })
-        .eq('game_room_id', gameRoomId)
-        .eq('user_id', authUserId)
-        .select('id');
-      if ((updatedExisting || []).length > 0) return;
+      const displayName = session.user.user_metadata?.display_name || session.user.email;
 
-      // Check room capacity (publicly readable)
-      const { data: room, error: roomError } = await supabase
-        .from('game_rooms')
-        .select('current_players, max_players')
-        .eq('id', gameRoomId)
-        .single();
-      if (roomError) throw roomError;
-      if (room.current_players >= room.max_players) {
-        toast({ title: 'Room Full', description: 'This game room is already full.', variant: 'destructive' });
-        return;
-      }
-
-      const nextPosition = Math.min(3, Math.max(0, room.current_players));
-
-      // Insert new player membership (RLS requires user_id = auth.uid())
-      const { error: insertError } = await supabase.from('game_players').insert({
-        game_room_id: gameRoomId,
-        user_id: authUserId,
-        display_name: session.user.user_metadata?.display_name || session.user.email,
-        position: nextPosition,
-        hand: [],
-        score: 0,
-        is_current_player: false,
-        is_connected: true,
+      const { error } = await supabase.rpc('join_game_room_atomic', {
+        p_game_room_id: gameRoomId,
+        p_display_name: displayName,
       });
-      if (insertError) throw insertError;
+
+      if (error) throw error;
     } catch (error: any) {
       console.error('Join room error:', error);
       toast({
@@ -191,28 +162,11 @@ const MultiplayerGameRoom = ({ gameRoomId, user, onLeaveRoom }: MultiplayerGameR
 
   const leaveGameRoom = async () => {
     try {
-      // Update connection status
       await supabase
         .from('game_players')
         .update({ is_connected: false })
         .eq('game_room_id', gameRoomId)
         .eq('user_id', user.id);
-
-      // Get updated player count (only connected players)
-      const { data: connectedPlayers } = await supabase
-        .from('game_players')
-        .select('id')
-        .eq('game_room_id', gameRoomId)
-        .eq('is_connected', true);
-
-      const playerCount = connectedPlayers?.length || 0;
-
-      // Update room player count
-      await supabase
-        .from('game_rooms')
-        .update({ current_players: playerCount })
-        .eq('id', gameRoomId);
-
     } catch (error) {
       console.error('Error leaving room:', error);
     }
