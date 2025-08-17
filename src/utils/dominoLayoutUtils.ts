@@ -44,6 +44,14 @@ export class DominoLayoutEngine {
       };
     }
 
+    console.log('Layout engine - calculating position:', {
+      domino: domino.id,
+      side,
+      currentDirection: this.currentDirection,
+      currentPos: { x: this.currentX, y: this.currentY },
+      isDouble: domino.isDouble
+    });
+
     const isDouble = domino.isDouble;
     let rotation = 0;
     let deltaX = 0;
@@ -56,22 +64,22 @@ export class DominoLayoutEngine {
       case 'east':
         deltaX = TILE_WIDTH + TILE_SPACING;
         deltaY = 0;
-        rotation = isDouble ? 90 : 0; // Doubles are perpendicular
+        rotation = isDouble ? 90 : 0; // Doubles perpendicular, regular horizontal
         break;
       case 'west':
         deltaX = -(TILE_WIDTH + TILE_SPACING);
         deltaY = 0;
-        rotation = isDouble ? 90 : 0;
+        rotation = isDouble ? 90 : 180; // Doubles perpendicular, regular horizontal (flipped)
         break;
       case 'north':
         deltaX = 0;
         deltaY = -(TILE_HEIGHT + TILE_SPACING);
-        rotation = isDouble ? 0 : 90; // Doubles stay horizontal, regular tiles vertical
+        rotation = isDouble ? 0 : 90; // Doubles horizontal, regular vertical
         break;
       case 'south':
         deltaX = 0;
         deltaY = TILE_HEIGHT + TILE_SPACING;
-        rotation = isDouble ? 0 : 90;
+        rotation = isDouble ? 0 : 90; // Doubles horizontal, regular vertical
         break;
     }
 
@@ -98,13 +106,21 @@ export class DominoLayoutEngine {
     this.currentDirection = newDirection;
     this.chainLength++;
 
-    return {
+    const result = {
       x: this.currentX,
       y: this.currentY,
       rotation,
       direction: newDirection,
       isCornerTurn
     };
+
+    console.log('Layout engine - position calculated:', {
+      domino: domino.id,
+      result,
+      chainLength: this.chainLength
+    });
+
+    return result;
   }
 
   private shouldTurnCorner(x: number, y: number): boolean {
@@ -152,19 +168,19 @@ export class DominoLayoutEngine {
     switch (newDirection) {
       case 'north':
         cornerY -= TILE_HEIGHT + TILE_SPACING;
-        rotation = isDouble ? 0 : 90;
+        rotation = isDouble ? 0 : 90; // Doubles horizontal, regular vertical
         break;
       case 'south':
         cornerY += TILE_HEIGHT + TILE_SPACING;
-        rotation = isDouble ? 0 : 90;
+        rotation = isDouble ? 0 : 90; // Doubles horizontal, regular vertical
         break;
       case 'east':
         cornerX += TILE_WIDTH + TILE_SPACING;
-        rotation = isDouble ? 90 : 0;
+        rotation = isDouble ? 90 : 0; // Doubles perpendicular, regular horizontal
         break;
       case 'west':
         cornerX -= TILE_WIDTH + TILE_SPACING;
-        rotation = isDouble ? 90 : 0;
+        rotation = isDouble ? 90 : 180; // Doubles perpendicular, regular horizontal (flipped)
         break;
     }
 
