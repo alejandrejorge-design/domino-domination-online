@@ -77,23 +77,58 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         
         // Calculate playable dominoes for current user (based on game_state.current_player_id)
         if (data.current_player_id === user.id) {
-          const currentPlayer = await getCurrentPlayer();
-          // Parse player hand from JSON
-          let playerHand: Domino[] = [];
-          try {
-            if (typeof currentPlayer?.hand === 'string') {
-              playerHand = JSON.parse(currentPlayer?.hand as any);
-            } else if (Array.isArray(currentPlayer?.hand)) {
-              playerHand = currentPlayer?.hand as unknown as Domino[];
-            }
-          } catch (e) {
+        const currentPlayer = await getCurrentPlayer();
+        
+        console.log('🎯 Debug: fetchGameState - current player data:', {
+          currentPlayer,
+          gameState: data,
+          userId: user.id,
+          isFirstMove: !data.left_end && !data.right_end
+        });
+        
+        // Parse player hand from JSON with improved error handling
+        let playerHand: Domino[] = [];
+        try {
+          if (typeof currentPlayer?.hand === 'string') {
+            const parsed = JSON.parse(currentPlayer.hand);
+            playerHand = Array.isArray(parsed) ? parsed : [];
+          } else if (Array.isArray(currentPlayer?.hand)) {
+            playerHand = currentPlayer.hand as unknown as Domino[];
+          } else {
+            console.warn('🎯 Debug: Invalid hand format:', currentPlayer?.hand);
             playerHand = [];
           }
+        } catch (e) {
+          console.error('🎯 Debug: Hand parsing error:', e, currentPlayer?.hand);
+          playerHand = [];
+        }
+        
+        console.log('🎯 Debug: Player hand parsed:', playerHand);
+        
+        // Check if this is the first move (no dominoes on board)
+        const isFirstMove = !data.left_end && !data.right_end;
+        console.log('🎯 Debug: Is first move?', isFirstMove);
+        
+        // For the first move, all dominoes in hand should be playable
+        // For subsequent moves, check against board ends
+        const playable = playerHand
+          .filter((domino: Domino) => {
+            const canPlay = isFirstMove || canPlayDomino(domino, data.left_end, data.right_end);
+            console.log('🎯 Debug: Domino playability check:', {
+              domino: domino.id,
+              leftVal: domino.left,
+              rightVal: domino.right,
+              boardLeftEnd: data.left_end,
+              boardRightEnd: data.right_end,
+              canPlay,
+              isFirstMove
+            });
+            return canPlay;
+          })
+          .map((domino: Domino) => domino.id);
           
-          const playable = playerHand
-            .filter((domino: Domino) => canPlayDomino(domino, data.left_end, data.right_end))
-            .map((domino: Domino) => domino.id);
-          setPlayableDominoes(playable);
+        console.log('🎯 Debug: Final playable dominoes:', playable);
+        setPlayableDominoes(playable);
         } else {
           setPlayableDominoes([]);
         }
