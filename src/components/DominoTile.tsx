@@ -11,6 +11,7 @@ interface DominoTileProps {
   selected?: boolean;
   playable?: boolean;
   faceDown?: boolean;
+  showConnectionLines?: boolean;
 }
 
 const DominoTile = ({ 
@@ -22,7 +23,8 @@ const DominoTile = ({
   isPlayable = false,
   selected = false,
   playable = false,
-  faceDown = false
+  faceDown = false,
+  showConnectionLines = false
 }: DominoTileProps) => {
   const renderPips = (value: number, isLeft: boolean) => {
     const pipPositions = {
@@ -96,9 +98,15 @@ const DominoTile = ({
             {renderPips(domino.right, false)}
           </div>
           
-          {/* Center divider line for doubles */}
-          {domino.isDouble && (
-            <div className="absolute left-1/2 top-1 bottom-1 w-px bg-domino-border/30 transform -translate-x-1/2" />
+          {/* Center divider line */}
+          <div className="absolute left-1/2 top-1 bottom-1 w-px bg-domino-border/30 transform -translate-x-1/2" />
+          
+          {/* Connection indicators for placed dominoes */}
+          {showConnectionLines && (
+            <>
+              <div className="absolute -left-2 top-1/2 w-4 h-px bg-accent/50 transform -translate-y-1/2" />
+              <div className="absolute -right-2 top-1/2 w-4 h-px bg-accent/50 transform -translate-y-1/2" />
+            </>
           )}
         </>
       )}

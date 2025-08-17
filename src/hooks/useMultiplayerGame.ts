@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { createDominoSet, dealDominoes, findStartingPlayer, canPlayDomino, getPlayOrientation } from '@/utils/dominoUtils';
+import { DominoLayoutEngine, createPlacedDomino } from '@/utils/dominoLayoutUtils';
 import type { Domino, PlacedDomino } from '@/types/domino';
 
 export const useMultiplayerGame = (gameRoomId: string, user: any) => {
@@ -10,6 +11,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
   const [selectedDomino, setSelectedDomino] = useState<string | null>(null);
   const [playableDominoes, setPlayableDominoes] = useState<string[]>([]);
   const [isHost, setIsHost] = useState(false);
+  const [layoutEngine] = useState(() => new DominoLayoutEngine({ width: 1200, height: 600, padding: 40 }));
   const { toast } = useToast();
 
   useEffect(() => {
@@ -304,14 +306,20 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         else if (rightEnd === domino.right) newRightEnd = domino.left;
       }
 
-      // Create placed domino (visual positioning handled by flex order)
-      const newPlacedDomino: PlacedDomino = {
-        ...domino,
-        x: placedDominoes.length * 70,
-        y: 0,
-        rotation: 0,
-        side,
-      };
+      // Calculate position using layout engine
+      const position = layoutEngine.calculateNextPosition(domino, side, isFirstMove);
+      
+      // Determine which end of the domino connects to the chain
+      let connectionSide: 'left' | 'right' = 'left';
+      if (!isFirstMove) {
+        if (side === 'left') {
+          connectionSide = (leftEnd === domino.left) ? 'left' : 'right';
+        } else {
+          connectionSide = (rightEnd === domino.left) ? 'left' : 'right';
+        }
+      }
+      
+      const newPlacedDomino = createPlacedDomino(domino, position, side, connectionSide);
 
       // Update player's hand  
       const newHand = playerHand.filter((d: Domino) => d.id !== dominoId);

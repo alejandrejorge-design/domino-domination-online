@@ -21,59 +21,82 @@ const GameBoard = ({ placedDominoes, onBoardClick, leftEnd, rightEnd }: GameBoar
       </div>
 
       {/* Center area for domino placement */}
-      <div className="relative z-10 flex items-center justify-center min-w-[600px] min-h-[200px]">
+      <div className="relative z-10 w-full h-full">
         {placedDominoes.length === 0 ? (
           // Empty board state
-          <div className="text-center text-muted-foreground">
-            <div className="w-24 h-24 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center mb-4 mx-auto">
-              <div className="text-2xl">🎯</div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <div className="w-24 h-24 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center mb-4 mx-auto">
+                <div className="text-2xl">🎯</div>
+              </div>
+              <p className="text-lg font-medium">Waiting for first domino...</p>
+              <p className="text-sm">The player with the highest double starts!</p>
             </div>
-            <p className="text-lg font-medium">Waiting for first domino...</p>
-            <p className="text-sm">The player with the highest double starts!</p>
           </div>
         ) : (
-          // Domino chain
-          <div className="flex items-center gap-1 flex-wrap justify-center max-w-4xl">
-            {/* Left end indicator */}
-            {leftEnd !== null && onBoardClick && (
-              <button
-                onClick={() => onBoardClick('left')}
-                className="w-12 h-12 border-2 border-dashed border-accent/50 rounded-lg flex items-center justify-center hover:bg-accent/10 transition-colors mr-2"
-                title={`Play on left end (${leftEnd})`}
-              >
-                <span className="text-accent font-bold">{leftEnd}</span>
-              </button>
-            )}
-
+          // Domino chain with absolute positioning
+          <>
             {/* Placed dominoes */}
             {placedDominoes.map((domino, index) => (
               <div
                 key={domino.id}
-                className="relative transition-all duration-300"
+                className="absolute transition-all duration-500 ease-in-out"
                 style={{
-                  transform: `rotate(${domino.rotation}deg)`,
-                  zIndex: placedDominoes.length - index,
+                  left: `${domino.x}px`,
+                  top: `${domino.y}px`,
+                  transform: `translate(-50%, -50%) rotate(${domino.rotation}deg)`,
+                  zIndex: 10 + index,
                 }}
               >
                 <DominoTile
                   domino={domino}
                   size="medium"
-                  className="shadow-lg"
+                  className={cn(
+                    "shadow-lg transition-all duration-300",
+                    domino.isCornerTurn && "ring-2 ring-accent/30"
+                  )}
                 />
+                
+                {/* Connection indicator for debugging */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-accent text-accent-foreground text-xs px-1 rounded">
+                    {domino.direction} {domino.connectionSide}
+                  </div>
+                )}
               </div>
             ))}
 
-            {/* Right end indicator */}
-            {rightEnd !== null && onBoardClick && (
+            {/* Play area indicators */}
+            {leftEnd !== null && onBoardClick && placedDominoes.length > 0 && (
               <button
-                onClick={() => onBoardClick('right')}
-                className="w-12 h-12 border-2 border-dashed border-accent/50 rounded-lg flex items-center justify-center hover:bg-accent/10 transition-colors ml-2"
-                title={`Play on right end (${rightEnd})`}
+                onClick={() => onBoardClick('left')}
+                className="absolute w-16 h-16 border-2 border-dashed border-accent/60 rounded-full flex items-center justify-center hover:bg-accent/10 transition-all duration-200 z-20 bg-background/80 backdrop-blur-sm"
+                style={{
+                  left: `${placedDominoes[0].x - 80}px`,
+                  top: `${placedDominoes[0].y}px`,
+                  transform: 'translate(-50%, -50%)'
+                }}
+                title={`Play on left end (${leftEnd})`}
               >
-                <span className="text-accent font-bold">{rightEnd}</span>
+                <span className="text-accent font-bold text-lg">{leftEnd}</span>
               </button>
             )}
-          </div>
+
+            {rightEnd !== null && onBoardClick && placedDominoes.length > 0 && (
+              <button
+                onClick={() => onBoardClick('right')}
+                className="absolute w-16 h-16 border-2 border-dashed border-accent/60 rounded-full flex items-center justify-center hover:bg-accent/10 transition-all duration-200 z-20 bg-background/80 backdrop-blur-sm"
+                style={{
+                  left: `${placedDominoes[placedDominoes.length - 1].x + 80}px`,
+                  top: `${placedDominoes[placedDominoes.length - 1].y}px`,
+                  transform: 'translate(-50%, -50%)'
+                }}
+                title={`Play on right end (${rightEnd})`}
+              >
+                <span className="text-accent font-bold text-lg">{rightEnd}</span>
+              </button>
+            )}
+          </>
         )}
       </div>
 
