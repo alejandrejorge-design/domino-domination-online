@@ -109,23 +109,41 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         const isFirstMove = !data.left_end && !data.right_end;
         console.log('🎯 Debug: Is first move?', isFirstMove);
         
-        // For the first move, all dominoes in hand should be playable
-        // For subsequent moves, check against board ends
-        const playable = playerHand
-          .filter((domino: Domino) => {
-            const canPlay = isFirstMove || canPlayDomino(domino, data.left_end, data.right_end);
-            console.log('🎯 Debug: Domino playability check:', {
-              domino: domino.id,
-              leftVal: domino.left,
-              rightVal: domino.right,
-              boardLeftEnd: data.left_end,
-              boardRightEnd: data.right_end,
-              canPlay,
-              isFirstMove
-            });
-            return canPlay;
-          })
-          .map((domino: Domino) => domino.id);
+        // Find the highest double for the first move
+        const findHighestDouble = (hand: Domino[]): Domino | null => {
+          let highestDouble: Domino | null = null;
+          hand.forEach(domino => {
+            if (domino.isDouble && (highestDouble === null || domino.left > highestDouble.left)) {
+              highestDouble = domino;
+            }
+          });
+          return highestDouble;
+        };
+        
+        let playable: string[] = [];
+        
+        if (isFirstMove) {
+          // For the first move, only the highest double is playable
+          const startingDomino = findHighestDouble(playerHand);
+          console.log('🎯 Debug: Starting domino (highest double):', startingDomino);
+          playable = startingDomino ? [startingDomino.id] : [];
+        } else {
+          // For subsequent moves, check against board ends
+          playable = playerHand
+            .filter((domino: Domino) => {
+              const canPlay = canPlayDomino(domino, data.left_end, data.right_end);
+              console.log('🎯 Debug: Domino playability check:', {
+                domino: domino.id,
+                leftVal: domino.left,
+                rightVal: domino.right,
+                boardLeftEnd: data.left_end,
+                boardRightEnd: data.right_end,
+                canPlay
+              });
+              return canPlay;
+            })
+            .map((domino: Domino) => domino.id);
+        }
           
         console.log('🎯 Debug: Final playable dominoes:', playable);
         setPlayableDominoes(playable);
