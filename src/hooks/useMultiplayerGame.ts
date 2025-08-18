@@ -216,6 +216,13 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       );
       const startingPlayerId = players[startingPlayerIndex].user_id;
 
+      console.log('🎯 Starting game - Debug info:', {
+        authenticatedUserId: user.id,
+        startingPlayerId,
+        startingPlayerName: players[startingPlayerIndex].display_name,
+        isUserStartingPlayer: user.id === startingPlayerId
+      });
+
       // Reset existing game state (if any), then insert a clean one
       await supabase.from('game_state').delete().eq('game_room_id', gameRoomId);
       const { error: stateError } = await supabase
@@ -230,6 +237,20 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
           dominoes: boneyard as any,
         } as any);
       if (stateError) throw stateError;
+
+      // CRITICAL FIX: Update is_current_player flags in game_players table to sync with game_state
+      // Set all players to false first
+      await supabase
+        .from('game_players')
+        .update({ is_current_player: false })
+        .eq('game_room_id', gameRoomId);
+
+      // Set starting player to true
+      await supabase
+        .from('game_players')
+        .update({ is_current_player: true })
+        .eq('game_room_id', gameRoomId)
+        .eq('user_id', startingPlayerId);
 
       // Update room status
       const { error: roomError } = await supabase.from('game_rooms').update({ status: 'in_progress' }).eq('id', gameRoomId);
@@ -247,7 +268,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         variant: 'destructive',
       });
     }
-  }, [gameRoomId, isHost, toast]);
+  }, [gameRoomId, isHost, toast, user.id]);
 
   const handleDominoClick = useCallback(async (dominoId: string) => {
     console.log('🎯 handleDominoClick called with dominoId:', dominoId);
@@ -534,7 +555,29 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         return;
       }
 
-      console.log('✅ Game state updated successfully');
+      // CRITICAL FIX: Update is_current_player flags in game_players table to sync with game_state
+      console.log('🎯 Updating player turn flags...');
+      console.log('🎯 Turn transition - Debug info:', {
+        authenticatedUserId: user.id,
+        previousPlayerId: user.id,
+        nextPlayerId,
+        isUserNext: user.id === nextPlayerId
+      });
+
+      // Set all players to false first
+      await supabase
+        .from('game_players')
+        .update({ is_current_player: false })
+        .eq('game_room_id', gameRoomId);
+
+      // Set next player to true
+      await supabase
+        .from('game_players')
+        .update({ is_current_player: true })
+        .eq('game_room_id', gameRoomId)
+        .eq('user_id', nextPlayerId);
+
+      console.log('✅ Game state and player turns updated successfully');
       setSelectedDomino(null);
 
       toast({
@@ -605,10 +648,31 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       const currentIdx = Math.max(0, order.indexOf(user.id));
       const nextPlayerId = order.length > 0 ? order[(currentIdx + 1) % order.length] : user.id;
 
+      console.log('🎯 Pass turn - Debug info:', {
+        authenticatedUserId: user.id,
+        currentPlayerId: gameState?.current_player_id,
+        nextPlayerId,
+        isUserPassing: user.id === gameState?.current_player_id
+      });
+
       await supabase
         .from('game_state')
         .update({ current_player_id: nextPlayerId } as any)
         .eq('game_room_id', gameRoomId);
+
+      // CRITICAL FIX: Update is_current_player flags in game_players table to sync with game_state
+      // Set all players to false first
+      await supabase
+        .from('game_players')
+        .update({ is_current_player: false })
+        .eq('game_room_id', gameRoomId);
+
+      // Set next player to true
+      await supabase
+        .from('game_players')
+        .update({ is_current_player: true })
+        .eq('game_room_id', gameRoomId)
+        .eq('user_id', nextPlayerId);
 
       toast({ title: 'Passed', description: 'Turn passed to next player.' });
     } catch (error: any) {
