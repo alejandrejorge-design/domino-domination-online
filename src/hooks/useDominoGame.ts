@@ -7,12 +7,10 @@ import {
   canPlayDomino,
   getPlayOrientation 
 } from '@/utils/dominoUtils';
-import { DominoLayoutEngine, createPlacedDomino } from '@/utils/dominoLayoutUtils';
 import { useToast } from '@/hooks/use-toast';
 
 export const useDominoGame = () => {
   const { toast } = useToast();
-  const [layoutEngine] = useState(() => new DominoLayoutEngine({ width: 1200, height: 600, padding: 40 }));
   
   const [gameState, setGameState] = useState<GameState>(() => {
     const dominoes = createDominoSet();
@@ -127,21 +125,14 @@ export const useDominoGame = () => {
       newRightEnd = gameState.rightEnd === oriented.right ? oriented.left : oriented.right;
     }
 
-    // Calculate position using layout engine
-    const isFirstMove = placedDominoes.length === 0;
-    const position = layoutEngine.calculateNextPosition(domino, placementSide, isFirstMove);
-    
-    // Determine connection side
-    let connectionSide: 'left' | 'right' = 'left';
-    if (!isFirstMove) {
-      if (placementSide === 'left') {
-        connectionSide = (gameState.leftEnd === domino.left) ? 'left' : 'right';
-      } else {
-        connectionSide = (gameState.rightEnd === domino.left) ? 'left' : 'right';
-      }
-    }
-    
-    const newPlacedDomino = createPlacedDomino(domino, position, placementSide, connectionSide);
+    // Create placed domino
+    const newPlacedDomino: PlacedDomino = {
+      ...domino,
+      x: placedDominoes.length * 70, // Simple positioning
+      y: 0,
+      rotation: 0,
+      side: placementSide,
+    };
 
     // Update game state
     setGameState(prev => {

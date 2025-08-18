@@ -28,7 +28,4 @@ export interface PlacedDomino extends Domino {
   y: number;
   rotation: number;
   side: 'left' | 'right';
-  direction: 'north' | 'south' | 'east' | 'west';
-  isCornerTurn: boolean;
-  connectionSide: 'left' | 'right'; // Which end connects to the chain
 }
