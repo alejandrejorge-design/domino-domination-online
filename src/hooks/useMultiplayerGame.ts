@@ -156,7 +156,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
     }
   };
 
-  const getCurrentPlayer = async () => {
+  const getCurrentPlayer = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('game_players')
@@ -171,7 +171,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       console.error('Error getting current player:', error);
       return null;
     }
-  };
+  }, [gameRoomId, user.id]);
 
   const startGame = useCallback(async () => {
     if (!isHost) return;
@@ -244,21 +244,22 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
   }, [gameRoomId, isHost, toast]);
 
   const handleDominoClick = useCallback(async (dominoId: string) => {
+    console.log('🎯 handleDominoClick called with dominoId:', dominoId);
+    console.log('🎯 Current playableDominoes state:', playableDominoes);
+    console.log('🎯 Current gameState:', gameState);
+    console.log('🎯 Current user id:', user.id);
+    console.log('🎯 Current player id from gameState:', gameState?.current_player_id);
+    
     // Only the current player (from game_state) can act
-    if (gameState?.current_player_id !== user.id) return;
-
-    const currentPlayer = await getCurrentPlayer();
-
-    if (!playableDominoes.includes(dominoId)) {
-      toast({
-        title: 'Cannot Play',
-        description: 'This domino cannot be played on either end.',
-        variant: 'destructive',
-      });
+    if (gameState?.current_player_id !== user.id) {
+      console.log('🎯 Not current player, returning early');
       return;
     }
 
-    // Check if we need to select which end to play on
+    const currentPlayer = await getCurrentPlayer();
+    console.log('🎯 Current player data:', currentPlayer);
+
+    // Parse player hand
     let playerHand: Domino[] = [];
     try {
       if (typeof currentPlayer?.hand === 'string') {
@@ -271,8 +272,67 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
     }
     
     const domino = playerHand.find((d: Domino) => d.id === dominoId);
-    if (!domino) return;
+    console.log('🎯 Found domino in hand:', domino);
+    if (!domino) {
+      toast({
+        title: 'Error',
+        description: 'Domino not found in your hand.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
+    // Check if this is the first move
+    const isFirstMove = !gameState?.left_end && !gameState?.right_end;
+    console.log('🎯 Is first move?', isFirstMove);
+
+    // Fallback playability check (don't rely solely on playableDominoes state)
+    let canPlayThisDomino = false;
+    let playabilityReason = '';
+
+    if (isFirstMove) {
+      // For first move, check if this is the highest double
+      const highestDouble = playerHand
+        .filter(d => d.isDouble)
+        .sort((a, b) => b.left - a.left)[0];
+      
+      canPlayThisDomino = domino.id === highestDouble?.id;
+      playabilityReason = canPlayThisDomino 
+        ? 'First move: This is the highest double' 
+        : `First move: You must play the highest double (${highestDouble?.left}-${highestDouble?.left})`;
+    } else {
+      // For subsequent moves, check against board ends
+      const leftEnd = gameState?.left_end;
+      const rightEnd = gameState?.right_end;
+      const canPlayLeft = leftEnd === null || domino.left === leftEnd || domino.right === leftEnd;
+      const canPlayRight = rightEnd === null || domino.left === rightEnd || domino.right === rightEnd;
+      
+      canPlayThisDomino = canPlayLeft || canPlayRight;
+      playabilityReason = canPlayThisDomino 
+        ? 'Can play on available ends' 
+        : `Cannot match board ends (${leftEnd}, ${rightEnd}) with domino (${domino.left}, ${domino.right})`;
+    }
+
+    console.log('🎯 Fallback playability check:', { canPlayThisDomino, playabilityReason });
+    console.log('🎯 playableDominoes.includes check:', playableDominoes.includes(dominoId));
+
+    // Use fallback check if playableDominoes state seems incorrect
+    if (!canPlayThisDomino) {
+      toast({
+        title: 'Cannot Play',
+        description: playabilityReason,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Additional check: if playableDominoes doesn't include this domino but our fallback says it's playable,
+    // it might be a timing issue with the state
+    if (!playableDominoes.includes(dominoId) && canPlayThisDomino) {
+      console.log('🎯 WARNING: playableDominoes state seems stale, but domino is actually playable');
+    }
+
+    // Check if we need to select which end to play on
     const canPlayLeft = gameState.left_end === null || domino.left === gameState.left_end || domino.right === gameState.left_end;
     const canPlayRight = gameState.right_end === null || domino.left === gameState.right_end || domino.right === gameState.right_end;
 
@@ -284,7 +344,7 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
     // Auto-play if only one end is available
     const side = canPlayLeft ? 'left' : 'right';
     await playDomino(dominoId, side);
-  }, [gameState, playableDominoes, toast]);
+  }, [gameState, playableDominoes, toast, getCurrentPlayer]);
 
   const handleBoardClick = useCallback(async (side: 'left' | 'right') => {
     if (selectedDomino) {
