@@ -75,6 +75,12 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         }
         setPlacedDominoes(parsedPlacedDominoes);
         
+        // Reset layout engine when starting a new game (no placed dominoes)
+        if (parsedPlacedDominoes.length === 0) {
+          console.log('🔄 Resetting layout engine for new game');
+          layoutEngine.reset();
+        }
+        
         // Calculate playable dominoes for current user (based on game_state.current_player_id)
         if (data.current_player_id === user.id) {
         const currentPlayer = await getCurrentPlayer();
@@ -354,11 +360,33 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
   }, [selectedDomino]);
 
   const playDomino = async (dominoId: string, side: 'left' | 'right') => {
+    console.log('🎯 playDomino called:', { dominoId, side, userId: user.id, currentPlayerId: gameState?.current_player_id });
+    
     try {
-      // Only the current player (from game_state) can act
-      if (gameState?.current_player_id !== user.id) return;
+      // Validate user permissions
+      if (gameState?.current_player_id !== user.id) {
+        console.log('❌ User not current player');
+        toast({
+          title: 'Not Your Turn',
+          description: 'Wait for your turn to play',
+          variant: 'destructive',
+        });
+        return;
+      }
 
+      console.log('🎯 Getting current player...');
       const currentPlayer = await getCurrentPlayer();
+      if (!currentPlayer) {
+        console.log('❌ Current player not found');
+        toast({
+          title: 'Error',
+          description: 'Player data not found',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      console.log('🎯 Current player found:', currentPlayer.id);
 
       let playerHand: Domino[] = [];
       try {
@@ -368,11 +396,24 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
           playerHand = currentPlayer?.hand as unknown as Domino[];
         }
       } catch (e) {
+        console.log('❌ Hand parsing failed:', e);
         playerHand = [];
       }
       
+      console.log('🎯 Player hand parsed:', playerHand.length, 'dominoes');
+      
       const domino = playerHand.find((d: Domino) => d.id === dominoId);
-      if (!domino) return;
+      if (!domino) {
+        console.log('❌ Domino not found in hand:', dominoId);
+        toast({
+          title: 'Error',
+          description: 'Domino not found in your hand',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      console.log('🎯 Playing domino:', domino);
 
       const leftEnd = gameState.left_end;
       const rightEnd = gameState.right_end;
@@ -420,7 +461,13 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       }
 
       // Calculate position using layout engine
+      console.log('🎯 Layout engine state before calculation:', { 
+        isFirstMove, 
+        placedDominoesCount: placedDominoes.length 
+      });
+      
       const position = layoutEngine.calculateNextPosition(domino, side, isFirstMove);
+      console.log('🎯 Calculated position:', position);
       
       // Determine which end of the domino connects to the chain
       let connectionSide: 'left' | 'right' = 'left';
@@ -433,13 +480,28 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
       }
       
       const newPlacedDomino = createPlacedDomino(domino, position, side, connectionSide);
+      console.log('🎯 Created placed domino:', newPlacedDomino);
 
       // Update player's hand  
       const newHand = playerHand.filter((d: Domino) => d.id !== dominoId);
-      await supabase
+      console.log('🎯 Updating player hand...');
+      
+      const { error: handError } = await supabase
         .from('game_players')
         .update({ hand: (newHand as any) })
         .eq('id', currentPlayer.id);
+        
+      if (handError) {
+        console.log('❌ Hand update failed:', handError);
+        toast({
+          title: 'Error',
+          description: `Failed to update hand: ${handError.message}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      console.log('✅ Hand updated successfully');
 
       // Determine next player from turn_order
       const order: string[] = Array.isArray(gameState?.turn_order) ? (gameState.turn_order as unknown as string[]) : [];
@@ -451,7 +513,8 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         ? [newPlacedDomino, ...placedDominoes]
         : [...placedDominoes, newPlacedDomino];
 
-      await supabase
+      console.log('🎯 Updating game state...');
+      const { error: stateError } = await supabase
         .from('game_state')
         .update({
           left_end: newLeftEnd as any,
@@ -461,6 +524,17 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         } as any)
         .eq('game_room_id', gameRoomId);
 
+      if (stateError) {
+        console.log('❌ Game state update failed:', stateError);
+        toast({
+          title: 'Error',
+          description: `Failed to update game state: ${stateError.message}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      console.log('✅ Game state updated successfully');
       setSelectedDomino(null);
 
       toast({
@@ -468,9 +542,10 @@ export const useMultiplayerGame = (gameRoomId: string, user: any) => {
         description: `You played ${domino.left}-${domino.right}`,
       });
     } catch (error: any) {
+      console.log('❌ playDomino error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to play domino',
+        description: `Failed to play domino: ${error.message || 'Unknown error'}`,
         variant: 'destructive',
       });
     }
